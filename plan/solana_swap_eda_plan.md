@@ -1,109 +1,126 @@
-# Solana Swap Data EDA & Trading Strategy Development Plan
+# Meme Coin First-Day Trading EDA & Strategy Development Plan
 
-## Data Understanding
+## Data Understanding (Updated)
 
 Based on initial analysis of `first_day_trades_batch_578.csv`:
 
 **Data Structure:**
-- **Dataset**: First-day trading data for a new Solana token
-- **Main Token**: One specific token mint (`4kgcTW3fy28KC659Hqwvpwvsk9zRH88oDPYPnYrnefZr`)
-- **Trading Pair**: Token ↔ SOL (Solana native token)
-- **Time Span**: ~2 hours of trading data (first day launch)
-- **Volume**: 10,000+ transactions in sample
-- **Success Rate**: 100% (no failed transactions in sample)
+- **Dataset**: 5900+ meme coins first-day trading data from Pump.fun
+- **Platforms**: Raydium/Jupiter DEXs  
+- **Selection**: Coins with >$10M cumulative volume since 2024
+- **Structure**: ~590 batch files, **10 coins per batch**
+- **Current Focus**: Batch 578 with 10 different meme coins
+- **Trading Pairs**: Each coin ↔ SOL (Solana native token)
 
-**Key Observations:**
-- Perfect 50/50 split between buying (SOL→Token) and selling (Token→SOL)
-- High transaction frequency suggests automated/bot trading
-- Wide range of transaction sizes (from micro to large trades)
-- Clean data with no missing values
-
----
-
-## Phase 1: Comprehensive Data Exploration
-
-### 1.1 Data Quality & Cleaning
-- [ ] Load all batch files and merge into comprehensive dataset
-- [ ] Check for data consistency across batches
-- [ ] Handle any missing values or anomalies
-- [ ] Validate transaction amounts and timestamp sequences
-- [ ] Identify and handle potential duplicate transactions
-
-### 1.2 Time Series Analysis
-- [ ] **Transaction Volume Patterns**
-  - Transactions per minute/hour
-  - Volume distribution over time
-  - Peak trading periods identification
-  
-- [ ] **Price Movement Analysis**
-  - Calculate implied prices from swap ratios
-  - Price volatility over time
-  - Price trend analysis (bullish/bearish periods)
-  
-- [ ] **Market Microstructure**
-  - Order flow analysis (buy vs sell pressure)
-  - Transaction size distribution
-  - Time between transactions (latency analysis)
-
-### 1.3 Trader Behavior Analysis
-- [ ] **Unique Trader Analysis**
-  - Number of unique wallets/traders
-  - Trading frequency per trader
-  - Whale vs retail trader identification
-  
-- [ ] **Trading Patterns**
-  - Repeat traders vs one-time traders
-  - Average trade sizes per trader type
-  - Trading session lengths
-
-### 1.4 Market Dynamics
-- [ ] **Liquidity Analysis**
-  - Bid-ask spread estimation
-  - Market depth analysis
-  - Slippage patterns
-  
-- [ ] **Price Impact**
-  - Trade size vs price impact correlation
-  - Market maker vs taker identification
-  - Front-running detection
+**Key Observations from Initial Sample:**
+- Multiple coins per batch (not single token analysis)
+- High transaction frequency suggests bot/MEV activity
+- Wide range of transaction sizes across different coins
+- Clean data structure with consistent schema
 
 ---
 
-## Phase 2: Pattern Recognition & Feature Engineering
+## Phase 1: Deep Dive EDA on 10-Coin Sample (Batch 578)
 
-### 2.1 Technical Indicators
-- [ ] **Price-Based Indicators**
-  - Moving averages (5min, 15min, 1hr)
-  - RSI (Relative Strength Index)
-  - MACD
-  - Bollinger Bands
-  
-- [ ] **Volume-Based Indicators**
-  - Volume-weighted average price (VWAP)
-  - On-balance volume (OBV)
-  - Volume rate of change
-  
-- [ ] **Custom Solana-Specific Indicators**
-  - SOL inflow/outflow ratios
-  - New token accumulation patterns
-  - Swap efficiency metrics
+### 1.1 Multi-Coin Data Loading & Structure Analysis
+**Notebook: `01_data_loading_structure.ipynb`**
+- [ ] Load batch 578 and identify all 10 coins
+- [ ] Analyze per-coin transaction volumes and time spans
+- [ ] Compare coin characteristics (volume, trader count, lifespan)
+- [ ] Data quality checks and missing value analysis
+- [ ] Create standardized metrics for cross-coin comparison
 
-### 2.2 Behavioral Pattern Detection
-- [ ] **Bot vs Human Detection**
-  - Transaction timing patterns
-  - Amount patterns (round numbers vs precise amounts)
-  - Repetitive behavior identification
+### 1.2 Individual Coin Deep Dives  
+**Notebook: `02_individual_coin_analysis.ipynb`**
+- [ ] **Per-Coin Time Series Analysis**
+  - Price evolution (SOL/token ratio over time)
+  - Volume patterns and trading intensity
+  - Buy vs sell pressure analysis
   
-- [ ] **Market Regime Classification**
-  - Trending vs ranging periods
-  - High vs low volatility regimes
-  - Accumulation vs distribution phases
+- [ ] **Trading Behavior Per Coin**
+  - Unique trader identification and patterns
+  - Transaction size distributions
+  - Whale vs retail activity identification
+  
+- [ ] **Coin Performance Comparison**
+  - Which coins had sustained activity vs quick death
+  - Volume leaders vs community-driven coins
+  - Success factors identification
 
-### 2.3 Network Effects
-- [ ] **Cross-Token Analysis** (if multiple tokens available)
-  - Correlation with other new token launches
-  - Market-wide sentiment effects
+### 1.3 Cross-Coin Pattern Recognition
+**Notebook: `03_cross_coin_patterns.ipynb`**
+- [ ] **Launch Pattern Analysis**
+  - Initial trading burst patterns
+  - Time-to-peak analysis
+  - Decay patterns after launch
+  
+- [ ] **Archetype Classification**
+  - Pump & dump patterns
+  - Community-driven growth
+  - Whale manipulation patterns
+  - Sustained trading coins
+  
+- [ ] **Trader Behavior Across Coins**
+  - Multi-coin traders identification
   - Capital rotation patterns
+  - Smart money vs retail patterns
+
+### 1.4 Market Microstructure Analysis
+**Notebook: `04_microstructure_analysis.ipynb`**
+- [ ] **Order Flow Analysis**
+  - Buy/sell imbalances and timing
+  - Transaction clustering patterns
+  - MEV/bot detection
+  
+- [ ] **Price Impact & Slippage**
+  - Large trade impact analysis
+  - Liquidity depth estimation
+  - Front-running pattern detection
+
+---
+
+## Phase 2: Trading Signal Development & Feature Engineering
+
+### 2.1 Meme Coin Specific Indicators
+**Notebook: `05_meme_coin_indicators.ipynb`**
+- [ ] **Launch Momentum Indicators**
+  - Initial volume burst strength
+  - Community adoption rate (unique traders growth)
+  - Price stability after initial pump
+  
+- [ ] **Social Trading Signals**
+  - Retail vs whale participation ratios
+  - Trading frequency clustering
+  - "Diamond hands" vs "paper hands" detection
+  
+- [ ] **Risk Indicators**
+  - Pump & dump likelihood scores
+  - Liquidity risk assessment
+  - Market manipulation detection
+
+### 2.2 Cross-Coin Behavioral Patterns
+**Notebook: `06_behavioral_patterns.ipynb`**
+- [ ] **Smart Money Detection**
+  - Early entry/exit patterns
+  - Multi-coin arbitrage behavior
+  - Whale coordination patterns
+  
+- [ ] **Retail Behavior Analysis**
+  - FOMO buying patterns
+  - Panic selling identification
+  - Community-driven price movements
+
+### 2.3 Feature Engineering for Strategy Development
+**Notebook: `07_feature_engineering.ipynb`**
+- [ ] **Time-based Features**
+  - Time since launch indicators
+  - Trading intensity decay patterns
+  - Peak activity timing features
+  
+- [ ] **Volume-based Features**
+  - Volume profile analysis
+  - Buy/sell pressure ratios
+  - Liquidity depth proxies
 
 ---
 
@@ -241,27 +258,33 @@ Based on initial analysis of `first_day_trades_batch_578.csv`:
 
 ---
 
-## Deliverables Timeline
+## Immediate Action Plan (Updated)
 
-### Week 1: Data Exploration & Cleaning
-- Complete data loading and quality checks
-- Initial visualization and pattern identification
-- Time series analysis
+### Step 1: Multi-Coin Structure Analysis (Today)
+- **Goal**: Understand the 10 coins in batch 578
+- **Deliverable**: `01_data_loading_structure.ipynb`
+- **Key Questions**: How many coins? What are their characteristics? Which ones succeeded vs failed?
 
-### Week 2: Feature Engineering & Pattern Recognition
-- Technical indicator calculation
-- Behavioral pattern detection
-- Market regime analysis
+### Step 2: Individual Coin Deep Dives (Next 2-3 days)
+- **Goal**: Thorough analysis of each coin's trading patterns
+- **Deliverable**: `02_individual_coin_analysis.ipynb`
+- **Key Questions**: What made some coins succeed? Can we identify early signals?
 
-### Week 3: Strategy Development & Backtesting
-- Strategy formulation and coding
-- Backtesting framework implementation
-- Initial performance evaluation
+### Step 3: Cross-Coin Pattern Analysis (Following 2-3 days)
+- **Goal**: Find patterns that work across multiple coins
+- **Deliverable**: `03_cross_coin_patterns.ipynb`
+- **Key Questions**: Are there common success/failure patterns? Can we classify coin types?
 
-### Week 4: Optimization & Documentation
-- Strategy refinement and optimization
-- Risk management implementation
-- Final documentation and recommendations
+### Step 4: Microstructure & Strategy Ideas (Final phase)
+- **Goal**: Develop concrete trading strategies based on findings
+- **Deliverables**: `04_microstructure_analysis.ipynb` + initial strategy concepts
+- **Key Questions**: What trading opportunities exist? How can we exploit them?
+
+### Future Phases (After 10-coin analysis)
+- Scale analysis to more batches
+- Build automated pattern detection
+- Develop full trading strategies
+- Create backtesting framework
 
 ---
 
