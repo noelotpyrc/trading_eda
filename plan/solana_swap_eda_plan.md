@@ -295,3 +295,10 @@ Based on initial analysis of `first_day_trades_batch_578.csv`:
 - **ML**: tensorflow/pytorch for deep learning
 - **Backtesting**: custom framework or vectorbt
 - **Documentation**: Jupyter notebooks for analysis 
+
+---
+
+## Addtional analysis ideas
+- Whale Behavior Deep Dive with cross coin data
+- Trader network analysis: Who follows whom in trading patterns, with cross coin data
+- Death prediction models: Early warning systems for dead coins (need to pull the current status of the coin)
