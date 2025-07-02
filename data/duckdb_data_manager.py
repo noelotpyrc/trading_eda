@@ -40,15 +40,15 @@ def upload_csvs_from_folder_to_duckdb(con, folder_path, table_name):
     print(f"Successfully created table and ingested all CSVs from {folder_path}")
 
 if __name__ == '__main__':
-    # Configuration for uploading enriched coin metadata
+    # Configuration for uploading deduplicated first day trades
     db_file = '/Volumes/Extreme SSD/DuckDB/solana.duckdb'
-    csv_file = 'post2024_meme_coins_enriched.csv'  # Path to enriched metadata CSV
-    table_name = 'coin_meta'
+    folder_path = '/Volumes/Extreme SSD/trading_data/solana/first_day_dedup'  # Path to deduplicated CSV files
+    table_name = 'first_day_trades'
 
-    print("🚀 Uploading enriched coin metadata to DuckDB...")
+    print("🚀 Uploading deduplicated first day trades to DuckDB...")
     print("=" * 60)
     print(f"Database: {db_file}")
-    print(f"CSV file: {csv_file}")
+    print(f"Folder: {folder_path}")
     print(f"Table: {table_name}")
     print()
 
@@ -57,46 +57,68 @@ if __name__ == '__main__':
         connection = connect_to_duckdb(db_file)
         print("✅ Connected to DuckDB")
 
-        # Check if CSV file exists
-        if not os.path.exists(csv_file):
-            print(f"❌ Error: {csv_file} not found")
-            print("💡 Run the DexPaprika enrichment script first to generate the enriched CSV")
+        # Check if folder exists
+        if not os.path.exists(folder_path):
+            print(f"❌ Error: {folder_path} not found")
+            print("💡 Run the CSV deduplicator script first to generate deduplicated files")
             connection.close()
             exit(1)
 
-        # Upload the enriched CSV
-        upload_csv_to_duckdb(connection, csv_file, table_name)
-        print("✅ Successfully uploaded enriched metadata")
+        # Check if there are CSV files in the folder
+        csv_files = glob.glob(os.path.join(folder_path, '*.csv'))
+        csv_files = [f for f in csv_files if not os.path.basename(f).startswith('._')]  # Filter out hidden files
+        
+        if not csv_files:
+            print(f"❌ Error: No CSV files found in {folder_path}")
+            print("💡 Run the CSV deduplicator script first to generate deduplicated files")
+            connection.close()
+            exit(1)
+            
+        print(f"📁 Found {len(csv_files)} deduplicated CSV files")
+
+        # Upload all deduplicated CSVs to create the table
+        upload_csvs_from_folder_to_duckdb(connection, folder_path, table_name)
+        print("✅ Successfully uploaded deduplicated trades")
 
         # Verify the upload and show summary
         result = connection.execute(f"SELECT COUNT(*) FROM {table_name}").fetchone()
         print(f"📊 Total rows in {table_name}: {result[0]:,}")
         
-        # Show successful enrichments
-        successful_count = connection.execute(f"SELECT COUNT(*) FROM {table_name} WHERE api_status = 'success'").fetchone()
-        print(f"🎯 Successfully enriched tokens: {successful_count[0]:,}")
+        # Show unique traders count
+        unique_traders = connection.execute(f"SELECT COUNT(DISTINCT swapper) FROM {table_name}").fetchone()
+        print(f"👥 Unique traders: {unique_traders[0]:,}")
         
-        # Show sample of enriched data
-        print(f"\n🏆 SAMPLE ENRICHED TOKENS:")
+        # Show unique coins count
+        unique_coins = connection.execute(f"SELECT COUNT(DISTINCT mint) FROM {table_name}").fetchone()
+        print(f"🪙 Unique coins: {unique_coins[0]:,}")
+        
+        # Show date range
+        date_range = connection.execute(f"""
+        SELECT 
+            MIN(DATE(block_timestamp)) as earliest_date,
+            MAX(DATE(block_timestamp)) as latest_date
+        FROM {table_name}
+        """).fetchone()
+        print(f"📅 Date range: {date_range[0]} to {date_range[1]}")
+        
+        # Show sample of data
+        print(f"\n🏆 SAMPLE DEDUPLICATED TRADES:")
         sample_query = f"""
-        SELECT symbol, name, price_usd, fdv, liquidity_usd 
+        SELECT swapper, mint, block_timestamp, swap_from_amount, swap_to_amount
         FROM {table_name} 
-        WHERE api_status = 'success' 
-        ORDER BY fdv DESC 
-        LIMIT 10
+        ORDER BY block_timestamp DESC 
+        LIMIT 5
         """
         sample_results = connection.execute(sample_query).fetchall()
         
-        for i, (symbol, name, price_usd, fdv, liquidity_usd) in enumerate(sample_results, 1):
-            print(f"{i:2d}. {symbol:<8} ({name[:30]:<30}) | "
-                  f"${price_usd:>8.6f} | "
-                  f"FDV: ${fdv:>12,.0f} | "
-                  f"Liquidity: ${liquidity_usd:>12,.0f}")
+        for i, (swapper, mint, timestamp, from_amt, to_amt) in enumerate(sample_results, 1):
+            print(f"{i}. {swapper[:20]}... | {mint[:20]}... | {timestamp} | {from_amt:,.0f} → {to_amt:,.0f}")
 
         # Close the connection
         connection.close()
         print(f"\n✅ Upload completed successfully!")
         print(f"💡 Table '{table_name}' is now available for analysis in DuckDB")
+        print(f"🎯 Ready for trader profiling and diversification analysis!")
         
     except Exception as e:
         print(f"❌ Error during upload: {e}")
