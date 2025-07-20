@@ -17,7 +17,7 @@ from datetime import datetime, timedelta
 
 # Add current directory to path for imports
 sys.path.append('.')
-from solana.csv_feature_extractor import process_single_csv
+from solana.feature_engineering.csv_feature_extractor import process_single_csv
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
