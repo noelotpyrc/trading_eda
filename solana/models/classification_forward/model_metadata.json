@@ -1,0 +1,15 @@
+{
+  "model_type": "XGBoost",
+  "auc_score": 0.6682647576726559,
+  "test_accuracy": 0.6112848076632346,
+  "cv_mean": 0.6664674255425624,
+  "cv_std": 0.002080042161392965,
+  "n_features": 69,
+  "training_date": "2025-07-21T03:41:48.815461",
+  "data_source": "/Volumes/Extreme SSD/trading_data/solana/classification_features/combined_features_sql.csv",
+  "sample_size": 3108866,
+  "target_distribution": {
+    "0": 1626199,
+    "1": 1482667
+  }
+}

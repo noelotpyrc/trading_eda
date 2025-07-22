@@ -1,0 +1,146 @@
+{
+  "regime_results": {
+    "0": {
+      "Random Forest": {
+        "test_auc": 0.5844969712322803,
+        "test_accuracy": 0.5614629166646975,
+        "cv_mean": 0.5847460698119397,
+        "cv_std": 0.000564266266694739,
+        "training_time": 2017.3270499706268,
+        "train_samples": 1692728,
+        "test_samples": 423182
+      },
+      "XGBoost": {
+        "test_auc": 0.5915771844490516,
+        "test_accuracy": 0.5661866525513846,
+        "cv_mean": 0.591043665020833,
+        "cv_std": 0.0004254217574853679,
+        "training_time": 121.07547283172607,
+        "train_samples": 1692728,
+        "test_samples": 423182
+      },
+      "LightGBM": {
+        "test_auc": 0.5839379462386886,
+        "test_accuracy": 0.5615290820498037,
+        "cv_mean": 0.5838090429531679,
+        "cv_std": 0.0002712170112949168,
+        "training_time": 112.3841462135315,
+        "train_samples": 1692728,
+        "test_samples": 423182
+      },
+      "Logistic Regression": {
+        "test_auc": 0.5538882829219853,
+        "test_accuracy": 0.5444276930493263,
+        "cv_mean": 0.5551606170314866,
+        "cv_std": 0.0005253117013428694,
+        "training_time": 335.5620119571686,
+        "train_samples": 1692728,
+        "test_samples": 423182
+      }
+    },
+    "1": {
+      "Random Forest": {
+        "test_auc": 0.6980047105803167,
+        "test_accuracy": 0.7404248753357694,
+        "cv_mean": 0.6983800410811425,
+        "cv_std": 0.0006037976982818455,
+        "training_time": 230.6725959777832,
+        "train_samples": 570331,
+        "test_samples": 142583
+      },
+      "XGBoost": {
+        "test_auc": 0.6980477280273519,
+        "test_accuracy": 0.7406002118064566,
+        "cv_mean": 0.6980953010125728,
+        "cv_std": 0.0004069064819821521,
+        "training_time": 26.799652099609375,
+        "train_samples": 570331,
+        "test_samples": 142583
+      },
+      "LightGBM": {
+        "test_auc": 0.6978535834203261,
+        "test_accuracy": 0.7404108484181143,
+        "cv_mean": 0.6983321702426657,
+        "cv_std": 0.0004906913941078806,
+        "training_time": 20.926772117614746,
+        "train_samples": 570331,
+        "test_samples": 142583
+      },
+      "Logistic Regression": {
+        "test_auc": 0.694567404096752,
+        "test_accuracy": 0.7376966398518757,
+        "cv_mean": 0.6957489471226133,
+        "cv_std": 0.0005351024853836597,
+        "training_time": 112.69279909133911,
+        "train_samples": 570331,
+        "test_samples": 142583
+      }
+    },
+    "2": {
+      "Random Forest": {
+        "test_auc": 0.675153156544982,
+        "test_accuracy": 0.6374332696530914,
+        "cv_mean": 0.6735525764626724,
+        "cv_std": 0.0013708167311649953,
+        "training_time": 287.5827581882477,
+        "train_samples": 224033,
+        "test_samples": 56009
+      },
+      "XGBoost": {
+        "test_auc": 0.6894131119316315,
+        "test_accuracy": 0.6478780196039922,
+        "cv_mean": 0.6872461686070035,
+        "cv_std": 0.001129198839347107,
+        "training_time": 26.154765129089355,
+        "train_samples": 224033,
+        "test_samples": 56009
+      },
+      "LightGBM": {
+        "test_auc": 0.6732905921198447,
+        "test_accuracy": 0.6385759431519934,
+        "cv_mean": 0.6714713785495193,
+        "cv_std": 0.0012691667987029716,
+        "training_time": 22.19127106666565,
+        "train_samples": 224033,
+        "test_samples": 56009
+      },
+      "Logistic Regression": {
+        "test_auc": 0.5683921607515715,
+        "test_accuracy": 0.5924583549072471,
+        "cv_mean": 0.5692212552483997,
+        "cv_std": 0.0026723232572926888,
+        "training_time": 51.62252116203308,
+        "train_samples": 224033,
+        "test_samples": 56009
+      }
+    }
+  },
+  "baseline_results": {
+    "XGBoost": {
+      "test_auc": 0.6683,
+      "test_accuracy": 0.6113,
+      "cv_mean": 0.6665,
+      "cv_std": 0.0021,
+      "training_time": 0,
+      "train_samples": 2487093,
+      "test_samples": 621773
+    }
+  },
+  "regimes_trained": [
+    0,
+    1,
+    2
+  ],
+  "training_date": "2025-07-22T11:41:12.751953",
+  "model_types": [
+    "Random Forest",
+    "XGBoost",
+    "LightGBM",
+    "Logistic Regression"
+  ],
+  "config": {
+    "test_size": 0.2,
+    "cv_folds": 5,
+    "random_state": 42
+  }
+}

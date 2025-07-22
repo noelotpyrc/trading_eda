@@ -1,0 +1,409 @@
+{
+  "analysis_date": "2025-07-21T16:54:34.863991",
+  "regime_analysis": {
+    "0": {
+      "n_samples": 351802,
+      "pct_of_total": 67.89643825570062,
+      "profitable_pct": 53.37746800757244,
+      "characteristics": [
+        {
+          "feature": "volume_imbalance_120s",
+          "regime_value": 0.07103517950648174,
+          "overall_value": 0.0032907589651454665,
+          "ratio": 21.586259613734942,
+          "description": "HIGH"
+        },
+        {
+          "feature": "volume_imbalance_60s",
+          "regime_value": 0.09800579738290993,
+          "overall_value": 0.006500378989680507,
+          "ratio": 15.076935672643502,
+          "description": "HIGH"
+        },
+        {
+          "feature": "volume_imbalance_30s",
+          "regime_value": 0.0944478127175208,
+          "overall_value": 0.011074149973941495,
+          "ratio": 8.528673720953565,
+          "description": "HIGH"
+        },
+        {
+          "feature": "txn_flow_imbalance_60s",
+          "regime_value": 0.12151910035548319,
+          "overall_value": 0.033353739259928454,
+          "ratio": 3.643342626268692,
+          "description": "HIGH"
+        },
+        {
+          "feature": "txn_flow_imbalance_30s",
+          "regime_value": 0.11590101285909431,
+          "overall_value": 0.03496374502794712,
+          "ratio": 3.3148912519229135,
+          "description": "HIGH"
+        },
+        {
+          "feature": "txn_flow_imbalance_120s",
+          "regime_value": 0.10191918729533415,
+          "overall_value": 0.033020083564151134,
+          "ratio": 3.086581740130011,
+          "description": "HIGH"
+        },
+        {
+          "feature": "sell_volume_30s",
+          "regime_value": 33.72195192957579,
+          "overall_value": 56.13725877033148,
+          "ratio": 0.6007053544862037,
+          "description": "LOW"
+        },
+        {
+          "feature": "sell_volume_60s",
+          "regime_value": 67.73215125487505,
+          "overall_value": 112.17599241940572,
+          "ratio": 0.6038025587647705,
+          "description": "LOW"
+        },
+        {
+          "feature": "total_volume_30s",
+          "regime_value": 68.3921672207225,
+          "overall_value": 112.86635668035362,
+          "ratio": 0.605957073766046,
+          "description": "LOW"
+        },
+        {
+          "feature": "total_volume_60s",
+          "regime_value": 137.34035209010926,
+          "overall_value": 225.56351544161737,
+          "ratio": 0.6088766253760405,
+          "description": "LOW"
+        }
+      ],
+      "activity_ratios": {
+        "volume": 0.6257586309381414,
+        "transactions": 0.6669683479361777,
+        "whale": 1.1439208414210889
+      },
+      "interpretation": "\ud83d\ude34 LOW ACTIVITY / QUIET"
+    },
+    "1": {
+      "n_samples": 119996,
+      "pct_of_total": 23.158768298449274,
+      "profitable_pct": 26.94673155771859,
+      "characteristics": [
+        {
+          "feature": "buy_volume_30s",
+          "regime_value": 0.20511079957818595,
+          "overall_value": 56.72909791002216,
+          "ratio": 0.0036156189175288837,
+          "description": "LOW"
+        },
+        {
+          "feature": "whale_txn_ratio_30s",
+          "regime_value": 5.368266300543351e-06,
+          "overall_value": 0.0006569383855374461,
+          "ratio": 0.008171642275077756,
+          "description": "LOW"
+        },
+        {
+          "feature": "medium_txn_ratio_30s",
+          "regime_value": 0.05427997018289693,
+          "overall_value": 0.2549376789526562,
+          "ratio": 0.21291466363308995,
+          "description": "LOW"
+        },
+        {
+          "feature": "total_txns_30s",
+          "regime_value": 1.693323110770359,
+          "overall_value": 50.56047824450685,
+          "ratio": 0.03349104220451042,
+          "description": "LOW"
+        },
+        {
+          "feature": "txn_flow_imbalance_30s",
+          "regime_value": -0.2131015378975216,
+          "overall_value": 0.03496374502794712,
+          "ratio": -6.094928821775041,
+          "description": "LOW"
+        },
+        {
+          "feature": "buy_ratio_60s",
+          "regime_value": 0.04284011017557522,
+          "overall_value": 0.42777903759720537,
+          "ratio": 0.10014541714383564,
+          "description": "LOW"
+        },
+        {
+          "feature": "medium_txn_ratio_60s",
+          "regime_value": 0.06904857129896329,
+          "overall_value": 0.26330565587269694,
+          "ratio": 0.2622373265924951,
+          "description": "LOW"
+        },
+        {
+          "feature": "total_volume_30s",
+          "regime_value": 1.6636935028469702,
+          "overall_value": 112.86635668035362,
+          "ratio": 0.014740384573209949,
+          "description": "LOW"
+        },
+        {
+          "feature": "big_txn_ratio_30s",
+          "regime_value": 0.0032594139605870197,
+          "overall_value": 0.0369179996042766,
+          "ratio": 0.08828793506408332,
+          "description": "LOW"
+        },
+        {
+          "feature": "sell_txns_60s",
+          "regime_value": 2.791768058935298,
+          "overall_value": 47.262289513553156,
+          "ratio": 0.0590696745262163,
+          "description": "LOW"
+        }
+      ],
+      "activity_ratios": {
+        "volume": 0.016957219175354078,
+        "transactions": 0.03349104220457667,
+        "whale": 0.1059915676241521
+      },
+      "interpretation": "\ud83d\ude34 LOW ACTIVITY / QUIET"
+    },
+    "2": {
+      "n_samples": 46347,
+      "pct_of_total": 8.944793445850099,
+      "profitable_pct": 58.67046410770924,
+      "characteristics": [
+        {
+          "feature": "sell_volume_30s",
+          "regime_value": 367.85046977718827,
+          "overall_value": 56.13725877033148,
+          "ratio": 6.5526974033677226,
+          "description": "HIGH"
+        },
+        {
+          "feature": "total_volume_30s",
+          "regime_value": 738.3649557466415,
+          "overall_value": 112.86635668035362,
+          "ratio": 6.541940197796007,
+          "description": "HIGH"
+        },
+        {
+          "feature": "buy_volume_30s",
+          "regime_value": 370.5144859694533,
+          "overall_value": 56.72909791002216,
+          "ratio": 6.531295219191956,
+          "description": "HIGH"
+        },
+        {
+          "feature": "sell_volume_60s",
+          "regime_value": 732.4271865757559,
+          "overall_value": 112.17599241940572,
+          "ratio": 6.529268614238689,
+          "description": "HIGH"
+        },
+        {
+          "feature": "total_volume_60s",
+          "regime_value": 1469.7825456948792,
+          "overall_value": 225.56351544161737,
+          "ratio": 6.516047343989244,
+          "description": "HIGH"
+        },
+        {
+          "feature": "buy_volume_60s",
+          "regime_value": 737.3553591191232,
+          "overall_value": 113.38752302221167,
+          "ratio": 6.502967341248218,
+          "description": "HIGH"
+        },
+        {
+          "feature": "sell_volume_120s",
+          "regime_value": 1447.8983883446383,
+          "overall_value": 224.11948379229833,
+          "ratio": 6.460386057670137,
+          "description": "HIGH"
+        },
+        {
+          "feature": "total_volume_120s",
+          "regime_value": 2908.882958269501,
+          "overall_value": 451.2876484737563,
+          "ratio": 6.445740245953168,
+          "description": "HIGH"
+        },
+        {
+          "feature": "buy_volume_120s",
+          "regime_value": 1460.9845699248633,
+          "overall_value": 227.16816468145797,
+          "ratio": 6.43129098644987,
+          "description": "HIGH"
+        },
+        {
+          "feature": "sell_txns_30s",
+          "regime_value": 143.2712796944786,
+          "overall_value": 23.630279168958495,
+          "ratio": 6.06303796368509,
+          "description": "HIGH"
+        }
+      ],
+      "activity_ratios": {
+        "volume": 6.385894742842777,
+        "transactions": 6.030280496234414,
+        "whale": 2.222210628471106
+      },
+      "interpretation": "\ud83d\udc0b HIGH WHALE ACTIVITY"
+    }
+  },
+  "overall_stats": {
+    "profitable_pct": 47.72988256183115,
+    "feature_means": {
+      "total_volume_30s": 112.86635668035362,
+      "buy_volume_30s": 56.72909791002216,
+      "sell_volume_30s": 56.13725877033148,
+      "buy_ratio_30s": 0.4124723923209217,
+      "volume_imbalance_30s": 0.011074149973941495,
+      "total_txns_30s": 50.56047824450685,
+      "buy_txns_30s": 26.93019907554835,
+      "sell_txns_30s": 23.630279168958495,
+      "txn_buy_ratio_30s": 0.42441912220996086,
+      "txn_flow_imbalance_30s": 0.03496374502794712,
+      "unique_traders_30s": 31.877823775198063,
+      "unique_buyers_30s": 19.787381910469076,
+      "unique_sellers_30s": 18.048961198120217,
+      "trader_buy_ratio_30s": 0.46872777068693117,
+      "avg_txn_size_30s": 1.9240519402201766,
+      "volume_per_trader_30s": 2.747790430490953,
+      "volume_concentration_30s": 1.0571538418415938,
+      "volume_mean_30s": 1.9240519402201766,
+      "volume_std_30s": 2.476165831352133,
+      "small_txn_ratio_30s": 0.5213532746658877,
+      "medium_txn_ratio_30s": 0.2549376789526562,
+      "big_txn_ratio_30s": 0.0369179996042766,
+      "whale_txn_ratio_30s": 0.0006569383855374461,
+      "total_volume_60s": 225.56351544161737,
+      "buy_volume_60s": 113.38752302221167,
+      "sell_volume_60s": 112.17599241940572,
+      "buy_ratio_60s": 0.42777903759720537,
+      "volume_imbalance_60s": 0.006500378989680507,
+      "total_txns_60s": 101.10880159028844,
+      "buy_txns_60s": 53.84651207673528,
+      "sell_txns_60s": 47.262289513553156,
+      "txn_buy_ratio_60s": 0.4412076496656939,
+      "txn_flow_imbalance_60s": 0.033353739259928454,
+      "unique_traders_60s": 55.78651728763184,
+      "unique_buyers_60s": 35.05397523859151,
+      "unique_sellers_60s": 31.84994933850563,
+      "trader_buy_ratio_60s": 0.4962042506716198,
+      "avg_txn_size_60s": 2.0063395063163836,
+      "volume_per_trader_60s": 3.3297718161826433,
+      "volume_concentration_60s": 1.2395194428259078,
+      "volume_mean_60s": 2.0063395063163836,
+      "volume_std_60s": 2.843408000635556,
+      "small_txn_ratio_60s": 0.546471761570135,
+      "medium_txn_ratio_60s": 0.26330565587269694,
+      "big_txn_ratio_60s": 0.03855439321811059,
+      "whale_txn_ratio_60s": 0.0007190789295138041,
+      "total_volume_120s": 451.2876484737563,
+      "buy_volume_120s": 227.16816468145797,
+      "sell_volume_120s": 224.11948379229833,
+      "buy_ratio_120s": 0.4397129088421149,
+      "volume_imbalance_120s": 0.0032907589651454665,
+      "total_txns_120s": 202.1153287207249,
+      "buy_txns_120s": 107.67939669397562,
+      "sell_txns_120s": 94.43593202674927,
+      "txn_buy_ratio_120s": 0.4545795026710741,
+      "txn_flow_imbalance_120s": 0.033020083564151134,
+      "unique_traders_120s": 97.21537986470969,
+      "unique_buyers_120s": 61.32026556272858,
+      "unique_sellers_120s": 55.42233351667969,
+      "trader_buy_ratio_120s": 0.5214731897483147,
+      "avg_txn_size_120s": 2.0730731809033616,
+      "volume_per_trader_120s": 4.195511668971263,
+      "volume_concentration_120s": 1.4096567520265146,
+      "volume_mean_120s": 2.0730731809033616,
+      "volume_std_120s": 3.179026285212402,
+      "small_txn_ratio_120s": 0.567381257516029,
+      "medium_txn_ratio_120s": 0.2683454845852205,
+      "big_txn_ratio_120s": 0.03959241672116967,
+      "whale_txn_ratio_120s": 0.0008059249955274296
+    },
+    "feature_stds": {
+      "total_volume_30s": 346.3885258543615,
+      "buy_volume_30s": 179.2939230006891,
+      "sell_volume_30s": 175.3479747364308,
+      "buy_ratio_30s": 0.29841901348755806,
+      "volume_imbalance_30s": 0.447892460776544,
+      "total_txns_30s": 97.77113296994892,
+      "buy_txns_30s": 54.27725473362666,
+      "sell_txns_30s": 47.26032114367804,
+      "txn_buy_ratio_30s": 0.28228568523271524,
+      "txn_flow_imbalance_30s": 0.39273709104021653,
+      "unique_traders_30s": 56.02400928589336,
+      "unique_buyers_30s": 36.52999582131373,
+      "unique_sellers_30s": 33.03712945225484,
+      "trader_buy_ratio_30s": 0.3122669457484318,
+      "avg_txn_size_30s": 6.130773152846456,
+      "volume_per_trader_30s": 36.34096936837311,
+      "volume_concentration_30s": 0.9655335904123845,
+      "volume_mean_30s": 6.130773152846456,
+      "volume_std_30s": 7.1514537228586565,
+      "small_txn_ratio_30s": 0.36179150335966165,
+      "medium_txn_ratio_30s": 0.2649756411407658,
+      "big_txn_ratio_30s": 0.10597808576939781,
+      "whale_txn_ratio_30s": 0.016843351331604545,
+      "total_volume_60s": 649.9073129824214,
+      "buy_volume_60s": 333.95385959265093,
+      "sell_volume_60s": 327.7179483222299,
+      "buy_ratio_60s": 0.2729756193723772,
+      "volume_imbalance_60s": 0.40980655787455916,
+      "total_txns_60s": 193.92477987459495,
+      "buy_txns_60s": 107.35172970987284,
+      "sell_txns_60s": 93.40361627155954,
+      "txn_buy_ratio_60s": 0.26006085446708377,
+      "txn_flow_imbalance_60s": 0.36373283018390756,
+      "unique_traders_60s": 96.34358528219781,
+      "unique_buyers_60s": 63.389742055930306,
+      "unique_sellers_60s": 56.02107573426502,
+      "trader_buy_ratio_60s": 0.2972671934827128,
+      "avg_txn_size_60s": 5.925589632926848,
+      "volume_per_trader_60s": 53.06824566408722,
+      "volume_concentration_60s": 1.053763626409696,
+      "volume_mean_60s": 5.925589632926848,
+      "volume_std_60s": 7.502467862919072,
+      "small_txn_ratio_60s": 0.34381725839879823,
+      "medium_txn_ratio_60s": 0.25180936737561044,
+      "big_txn_ratio_60s": 0.10125836931778781,
+      "whale_txn_ratio_60s": 0.016736875106491526,
+      "total_volume_120s": 1252.5039638608978,
+      "buy_volume_120s": 642.5239948108157,
+      "sell_volume_120s": 626.1126556570358,
+      "buy_ratio_120s": 0.2509072963856563,
+      "volume_imbalance_120s": 0.3774652799477255,
+      "total_txns_120s": 382.97861018382736,
+      "buy_txns_120s": 211.37633528395304,
+      "sell_txns_120s": 183.83353102535148,
+      "txn_buy_ratio_120s": 0.24198536402769696,
+      "txn_flow_imbalance_120s": 0.3428237445071563,
+      "unique_traders_120s": 164.77133290776578,
+      "unique_buyers_120s": 108.90472735220897,
+      "unique_sellers_120s": 93.83803079134708,
+      "trader_buy_ratio_120s": 0.2873609049724372,
+      "avg_txn_size_120s": 6.188240339018429,
+      "volume_per_trader_120s": 41.24886209008839,
+      "volume_concentration_120s": 1.1424111426158012,
+      "volume_mean_120s": 6.188240339018429,
+      "volume_std_120s": 8.572776600637967,
+      "small_txn_ratio_120s": 0.32855357885780323,
+      "medium_txn_ratio_120s": 0.2411379885206608,
+      "big_txn_ratio_120s": 0.09812560024931401,
+      "whale_txn_ratio_120s": 0.017012090013091227
+    }
+  },
+  "summary": {
+    "total_regimes": 3,
+    "most_profitable_regime": 2,
+    "largest_regime": 0,
+    "regime_interpretations": {
+      "0": "\ud83d\ude34 LOW ACTIVITY / QUIET",
+      "1": "\ud83d\ude34 LOW ACTIVITY / QUIET",
+      "2": "\ud83d\udc0b HIGH WHALE ACTIVITY"
+    }
+  }
+}
