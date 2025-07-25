@@ -11,7 +11,7 @@ from abc import ABC, abstractmethod
 from typing import Dict, Optional, Tuple, Any
 
 
-class BaseStrategy(bt.Strategy, ABC):
+class BaseStrategy(bt.Strategy):
     """
     Abstract base class for all trading strategies
     """
