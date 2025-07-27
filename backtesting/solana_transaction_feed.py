@@ -26,11 +26,18 @@ class SolanaTransactionFeed(bt.feeds.DataBase):
     """
     Custom data feed for processing individual Solana transactions
     Bypasses OHLCV aggregation to work with raw transaction data
+    
+    Price Scaling: Uses 1e9 scale factor (like Ethereum's Gwei) for numerical precision
+    - Raw price: 0.0000000003 SOL/token → Scaled: 0.3 GSol/token
+    - Prevents floating-point precision issues in P&L calculations
     """
+    
+    # Price scaling factor (like Ethereum's Gwei: 1e9)
+    PRICE_SCALE_FACTOR = 1e9
     
     # Define custom data lines for transaction data and features
     lines = (
-        'transaction_price',      # Individual transaction price
+        'transaction_price',      # Individual transaction price (scaled by 1e9)
         'sol_amount',            # SOL amount in transaction
         'is_buy',                # 1 if buy, 0 if sell
         'trader_id',             # Trader wallet address hash
@@ -93,6 +100,9 @@ class SolanaTransactionFeed(bt.feeds.DataBase):
         # Prepare transaction data
         self.df = self.params.transaction_data.copy()
         self._prepare_data()
+        
+        # Add transaction prices based on SOL trades
+        self._calculate_transaction_prices()
         
         # Initialize state tracking
         self.current_idx = 0
@@ -188,6 +198,51 @@ class SolanaTransactionFeed(bt.feeds.DataBase):
         # Reset current index to iterate through sample timestamps
         self.current_sample_idx = 0
     
+    def _calculate_transaction_prices(self):
+        """Calculate price for each transaction based on SOL trades."""
+        print(f"📊 Calculating transaction prices for {len(self.df)} transactions...")
+        
+        # SOL mint address
+        SOL_MINT = 'So11111111111111111111111111111111111111112'
+        
+        def calculate_price_for_transaction(row):
+            """Calculate price as SOL amount / token amount for SOL trades, scaled by 1e9."""
+            # Check if this is a SOL trade
+            if row['swap_from_mint'] == SOL_MINT:
+                # SOL to token: price = SOL amount / token amount
+                if row['swap_to_amount'] > 0:
+                    raw_price = row['swap_from_amount'] / row['swap_to_amount']
+                    return raw_price * self.PRICE_SCALE_FACTOR  # Scale by 1e9
+                else:
+                    return 0.0
+            elif row['swap_to_mint'] == SOL_MINT:
+                # Token to SOL: price = SOL amount / token amount  
+                if row['swap_from_amount'] > 0:
+                    raw_price = row['swap_to_amount'] / row['swap_from_amount']
+                    return raw_price * self.PRICE_SCALE_FACTOR  # Scale by 1e9
+                else:
+                    return 0.0
+            else:
+                # Not a SOL trade
+                return 0.0
+        
+        # Calculate price for each transaction
+        self.df['transaction_price'] = self.df.apply(calculate_price_for_transaction, axis=1)
+        
+        # Filter out transactions with zero or invalid prices
+        valid_price_mask = self.df['transaction_price'] > 0
+        valid_count = valid_price_mask.sum()
+        total_count = len(self.df)
+        
+        if total_count > 0:
+            percentage = valid_count/total_count*100
+            print(f"✅ Calculated prices for {valid_count}/{total_count} transactions ({percentage:.1f}%)")
+        else:
+            print("✅ Calculated prices for 0/0 transactions")
+        
+        # Don't override individual transaction prices with fallback
+        # Let invalid transactions keep their 0.0 prices
+    
     def _load(self):
         """
         Load next data point (called by Backtrader)
@@ -215,6 +270,9 @@ class SolanaTransactionFeed(bt.feeds.DataBase):
         else:
             ml_features = self._get_default_features()
         
+        # Calculate OHLCV from transactions for this sample timestamp
+        ohlcv = self._calculate_ohlcv_from_transactions(current_time)
+        
         # Convert to legacy format for backward compatibility
         features = self._convert_ml_features_to_legacy(ml_features, window_transactions_df)
         
@@ -229,17 +287,12 @@ class SolanaTransactionFeed(bt.feeds.DataBase):
         
         self.lines.datetime[0] = bt.date2num(current_time)
         
-        # Set basic OHLCV data for onchain broker
-        price = features['avg_price']
-        volume = features['total_volume']
-        
-        # For onchain data, we use actual transaction price as all OHLC values
-        # since transactions execute at specific prices, not ranges
-        self.lines.open[0] = price
-        self.lines.high[0] = price
-        self.lines.low[0] = price  
-        self.lines.close[0] = price
-        self.lines.volume[0] = volume
+        # Set OHLCV data from calculated transaction prices
+        self.lines.open[0] = ohlcv['open']
+        self.lines.high[0] = ohlcv['high']
+        self.lines.low[0] = ohlcv['low']
+        self.lines.close[0] = ohlcv['close']
+        self.lines.volume[0] = ohlcv['volume']
         
         # Transaction-specific lines (legacy)
         self.lines.transaction_price[0] = features['avg_price']
@@ -299,7 +352,7 @@ class SolanaTransactionFeed(bt.feeds.DataBase):
         if window_df.empty:
             return {
                 'total_volume': 0.0,
-                'avg_price': 1.0,
+                'avg_price': 1.0 * self.PRICE_SCALE_FACTOR,  # Scaled fallback price
                 'buy_ratio': 0.0,  # 0.0 when no data (actual calculated value)
                 'unique_traders': 0,
                 'whale_ratio': 0.0,
@@ -318,8 +371,8 @@ class SolanaTransactionFeed(bt.feeds.DataBase):
         cumulative_volume = getattr(self, '_cumulative_volume', 0) + total_volume
         self._cumulative_volume = cumulative_volume
         
-        # Calculate legacy metrics
-        avg_price = window_df['price'].mean() if 'price' in window_df and len(window_df) > 0 else 1.0
+        # Calculate legacy metrics (using scaled fallback price)
+        avg_price = window_df['price'].mean() if 'price' in window_df and len(window_df) > 0 else (1.0 * self.PRICE_SCALE_FACTOR)
         
         # Store volume for momentum calculation
         self.volume_buffer.append(total_volume)
@@ -401,4 +454,86 @@ class SolanaTransactionFeed(bt.feeds.DataBase):
                 feature_value = ml_features.get(line_name, 0.0)
                 line_obj = getattr(self.lines, line_name)
                 line_obj[0] = feature_value
+    
+    def _calculate_ohlcv_from_transactions(self, sample_timestamp):
+        """
+        Calculate OHLCV from transactions around sample timestamp.
+        
+        Strategy:
+        1. Use transactions from last 60s (sample_timestamp-60 to sample_timestamp)
+        2. If no transactions in last 60s, fallback to close price from -120s to -60s
+        3. Continue fallback pattern (-180s to -120s, etc.) until price found
+        """
+        # Primary window: last 60 seconds before sample timestamp
+        primary_start = sample_timestamp - timedelta(seconds=60)
+        primary_end = sample_timestamp
+        
+        primary_mask = (
+            (self.df[self.params.datetime_col] >= primary_start) & 
+            (self.df[self.params.datetime_col] < primary_end) &
+            (self.df['transaction_price'] > 0)  # Only valid prices
+        )
+        primary_transactions = self.df[primary_mask].copy()
+        
+        if not primary_transactions.empty:
+            # Use primary 60s window for OHLCV calculation
+            return self._calculate_ohlcv_from_price_data(primary_transactions)
+        
+        # Fallback: Look for transactions in earlier 60s windows
+        fallback_close_price = self._get_fallback_close_price(sample_timestamp)
+        
+        return {
+            'open': fallback_close_price,
+            'high': fallback_close_price,
+            'low': fallback_close_price,
+            'close': fallback_close_price,
+            'volume': 0.0  # No volume in current window
+        }
+    
+    def _calculate_ohlcv_from_price_data(self, transactions_df):
+        """Calculate OHLCV from transactions with valid prices (scaled prices)."""
+        if transactions_df.empty:
+            # Use scaled fallback price (1.0 SOL/token * 1e9 = 1e9)
+            fallback_price = 1.0 * self.PRICE_SCALE_FACTOR
+            return {'open': fallback_price, 'high': fallback_price, 'low': fallback_price, 'close': fallback_price, 'volume': 0.0}
+        
+        # Sort by timestamp to get proper open/close sequence
+        sorted_txns = transactions_df
+        prices = sorted_txns['transaction_price']  # Already scaled prices
+        volumes = sorted_txns[self.params.volume_col]
+        
+        return {
+            'open': prices.iloc[0],          # First transaction price (scaled)
+            'high': prices.max(),            # Highest transaction price (scaled)
+            'low': prices.min(),             # Lowest transaction price (scaled)
+            'close': prices.iloc[-1],        # Last transaction price (scaled)
+            'volume': volumes.sum()          # Total SOL volume
+        }
+    
+    def _get_fallback_close_price(self, sample_timestamp):
+        """
+        Get fallback close price from earlier time periods.
+        Try -120s to -60s, then -180s to -120s, etc.
+        """
+        # Try fallback windows in 60s increments
+        for lookback_start in [120, 180, 240, 300, 360]:  # 2min, 3min, 4min, 5min, 6min back
+            lookback_end = lookback_start - 60
+            
+            fallback_start = sample_timestamp - timedelta(seconds=lookback_start)  
+            fallback_end = sample_timestamp - timedelta(seconds=lookback_end)
+            
+            fallback_mask = (
+                (self.df[self.params.datetime_col] >= fallback_start) & 
+                (self.df[self.params.datetime_col] < fallback_end) &
+                (self.df['transaction_price'] > 0)
+            )
+            fallback_transactions = self.df[fallback_mask]
+            
+            if not fallback_transactions.empty:
+                # Return the close price (last transaction) from this window
+                sorted_fallback = fallback_transactions.sort_values(self.params.datetime_col)
+                return sorted_fallback['transaction_price'].iloc[-1]
+        
+        # Ultimate fallback if no transactions found in any window (scaled)
+        return 1.0 * self.PRICE_SCALE_FACTOR
 

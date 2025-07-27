@@ -18,7 +18,7 @@ class ClassificationInference:
     Classification inference engine for trading signal prediction
     """
     
-    def __init__(self, model_dir: str = "solana/models/classification_forward"):
+    def __init__(self, model_dir: str = "/Volumes/Extreme SSD/trading_data/solana/models/classification_forward"):
         """
         Initialize the classification inference engine
         
@@ -308,7 +308,7 @@ class ClassificationInference:
         """Get information about the loaded model"""
         info = {
             'model_type': type(self.model).__name__ if self.model else 'Not loaded',
-            'n_features': len(self.feature_names) if self.feature_names else 'Unknown',
+            'n_features': len(self.feature_names) if self.feature_names is not None else 'Unknown',
             'has_feature_importance': self.feature_importance is not None,
             'has_metadata': self.metadata is not None
         }
