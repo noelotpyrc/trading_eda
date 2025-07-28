@@ -43,7 +43,8 @@ class OnchainBroker(bt.brokers.BackBroker):
     
     def next(self):
         """Process pending orders using current transaction data"""
-        super().next()
+        # Skip parent next() due to position datetime issues
+        # super().next()  
         
         # Debug: Show pending orders
         if self.pending_orders:
@@ -52,7 +53,9 @@ class OnchainBroker(bt.brokers.BackBroker):
         # Process all pending orders
         for order in self.pending_orders[:]:
             print(f"🔧 Executing order: Type={'BUY' if order.isbuy() else 'SELL'}, Size={order.size}")
+            print(f"🔧 Order status before execution: {order.getstatusname()}")
             self._execute_onchain_order(order)
+            print(f"🔧 Order status after execution: {order.getstatusname()}")
         
         self.pending_orders.clear()
     
@@ -70,6 +73,7 @@ class OnchainBroker(bt.brokers.BackBroker):
                 current_price = data.close[0]
             
             if current_price <= 0:
+                print(f"⚠️ ORDER REJECTED: Invalid price {current_price}")
                 order.reject()
                 return
             
@@ -84,13 +88,16 @@ class OnchainBroker(bt.brokers.BackBroker):
             # Check minimum transaction size
             transaction_value = abs(order.size) * execution_price
             if transaction_value < self.params.min_transaction_size:
+                print(f"⚠️ ORDER REJECTED: Transaction value ${transaction_value:.2f} < minimum ${self.params.min_transaction_size}")
                 order.reject()
                 return
             
             # Check if we have enough cash/position
             if order.isbuy():
                 required_cash = order.size * execution_price
-                if required_cash > self.get_cash():
+                available_cash = self.get_cash()
+                if required_cash > available_cash:
+                    print(f"⚠️ ORDER REJECTED: Insufficient cash. Need ${required_cash:,.2f}, have ${available_cash:,.2f}")
                     order.reject()
                     return
             else:
@@ -117,38 +124,92 @@ class OnchainBroker(bt.brokers.BackBroker):
         # Calculate commission (gas costs)
         commission = order.size * price * self.params.gas_cost_pct
         
-        # Use parent broker's execution mechanism
-        # Execute with corrected parameters for Backtrader
-        order.execute(
-            order.data.datetime.datetime(0),  # dt
-            order.size,                       # size  
-            price,                           # price
-            order.size,                      # closed
-            order.size * price,              # closedvalue
-            commission,                      # closedcomm
-            0,                              # opened
-            0.0,                            # openedvalue
-            0.0,                            # openedcomm
-            0.0,                            # margin
-            0.0,                            # pnl
-            position.size,                   # psize (current position size)
-            position.price                   # pprice (current position price)
-        )
+        # Calculate opened/closed amounts for proper Trade tracking
+        current_position_size = position.size
         
-        # Update position and cash manually
         if order.isbuy():
-            self.cash -= (order.size * price + commission)
-            position.update(order.size, price)
-        else:
-            self.cash += (order.size * price - commission)  
-            position.update(-order.size, price)
+            if current_position_size >= 0:
+                # Opening long position or adding to long position
+                opened = order.size
+                closed = 0
+                openedvalue = opened * price
+                closedvalue = 0.0
+                openedcomm = abs(commission)
+                closedcomm = 0.0
+            else:
+                # Reducing short position (buy to cover)
+                if abs(order.size) <= abs(current_position_size):
+                    # Fully reducing short position
+                    opened = 0
+                    closed = order.size  # Positive when covering short
+                    openedvalue = 0.0
+                    closedvalue = closed * price
+                    openedcomm = 0.0
+                    closedcomm = abs(commission)
+                else:
+                    # Covering short and opening long
+                    closed = abs(current_position_size)
+                    opened = order.size - closed
+                    closedvalue = closed * price
+                    openedvalue = opened * price
+                    closedcomm = abs(commission) * (closed / order.size)
+                    openedcomm = abs(commission) * (opened / order.size)
+        else:  # Sell order
+            if current_position_size > 0:
+                # Reducing long position
+                if abs(order.size) <= current_position_size:
+                    # Fully reducing long position
+                    closed = abs(order.size)
+                    opened = 0
+                    closedvalue = closed * price
+                    openedvalue = 0.0
+                    closedcomm = abs(commission)
+                    openedcomm = 0.0
+                else:
+                    # Closing long and opening short
+                    closed = current_position_size
+                    opened = abs(order.size) - closed
+                    closedvalue = closed * price
+                    openedvalue = opened * price
+                    closedcomm = abs(commission) * (closed / abs(order.size))
+                    openedcomm = abs(commission) * (opened / abs(order.size))
+            else:
+                # Opening short position or adding to short position
+                opened = abs(order.size)
+                closed = 0
+                openedvalue = opened * price
+                closedvalue = 0.0
+                openedcomm = abs(commission)
+                closedcomm = 0.0
+
+        # Debug: Print execute parameters for TradeAnalyzer troubleshooting
+        if hasattr(self, '_debug_trades') and self._debug_trades:
+            print(f"🔧 Execute params: size={order.size}, opened={opened}, closed={closed}")
+            print(f"   Position before: {position.size}, Position will be: {position.size + order.size}")
+        
+        # Use parent broker execution for proper Trade tracking
+        # The parent broker handles: order.execute(), position.update(), trade creation, notifications
+        result = super()._execute(order, ago=0, price=price)
+        if hasattr(self, '_debug_trades') and self._debug_trades:
+            print(f"🔧 Parent broker execution completed successfully")
         
         # Complete the order
         order.completed()
+    
+    def getvalue(self, datas=None):
+        """Calculate portfolio value as cash + position values"""
+        total_value = self.cash
         
-        # Notify the strategy
-        if hasattr(order.owner, 'notify_order'):
-            order.owner.notify_order(order)
+        # Add value of all positions
+        if datas:
+            for data in datas:
+                position = self.getposition(data)
+                if position.size != 0:
+                    current_price = data.close[0] if len(data) > 0 else 0
+                    position_value = position.size * current_price
+                    total_value += position_value
+        
+        return total_value
 
 
 class OnchainCommissionInfo(bt.CommInfoBase):

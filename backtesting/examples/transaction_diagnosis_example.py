@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """
 Transaction Diagnosis Example
-Demonstrates how to diagnose trading strategy decisions and market conditions
-using the DiagnosticSolanaStrategy which provides comprehensive logging.
+Demonstrates how to diagnose trading strategy decisions with cleaned transaction data
+Uses DiagnosticSimpleStrategy which shows proper separation of concerns:
+- Data feed provides raw transaction data only
+- Strategy calculates indicators internally and provides detailed logging
 """
 
 import sys
@@ -13,7 +15,7 @@ sys.path.append('/Users/noel/projects/trading_eda')
 import os
 import backtrader as bt
 from backtesting.solana_transaction_feed import SolanaTransactionFeed
-from backtesting.strategies import DiagnosticSolanaStrategy
+from backtesting.strategies import DiagnosticSimpleStrategy
 from backtesting.onchain_broker import setup_onchain_broker
 
 
@@ -126,18 +128,39 @@ def create_sample_transaction_data(n_transactions=5000):
             mint = np.random.choice(available_tokens)  # Any token
         token_mints.append(mint)
     
-    # Create DataFrame
-    df = pd.DataFrame({
-        'block_timestamp': timestamps,
-        'price': prices,
-        'sol_amount': volumes,
-        'is_buy': is_buy.astype(bool),
-        'swapper': trader_addresses,
-        'trader_hash': trader_addresses,  # Duplicate for compatibility
-        'txn_size_category': categories,
-        'succeeded': succeeded,
-        'mint': token_mints
-    })
+    # Create DataFrame with required SOL trading format columns
+    df_data = []
+    for i in range(n_transactions):
+        # Create proper SOL trading format for price calculation
+        if is_buy[i]:  # SOL -> Token (buy token with SOL)
+            swap_from_mint = 'So11111111111111111111111111111111111111112'  # SOL
+            swap_to_mint = token_mints[i]
+            swap_from_amount = volumes[i]
+            swap_to_amount = volumes[i] / prices[i]  # Token amount
+        else:  # Token -> SOL (sell token for SOL)
+            swap_from_mint = token_mints[i]
+            swap_to_mint = 'So11111111111111111111111111111111111111112'  # SOL
+            swap_from_amount = volumes[i] / prices[i]  # Token amount
+            swap_to_amount = volumes[i]
+        
+        transaction = {
+            'block_timestamp': timestamps[i],
+            'price': prices[i],
+            'sol_amount': volumes[i],
+            'is_buy': is_buy[i],
+            'swapper': trader_addresses[i],
+            'trader_hash': trader_addresses[i],  # Duplicate for compatibility
+            'txn_size_category': categories[i],
+            'succeeded': succeeded[i],
+            'mint': token_mints[i],
+            'swap_from_mint': swap_from_mint,
+            'swap_to_mint': swap_to_mint,
+            'swap_from_amount': swap_from_amount,
+            'swap_to_amount': swap_to_amount
+        }
+        df_data.append(transaction)
+    
+    df = pd.DataFrame(df_data)
     
     # Sort by timestamp to ensure chronological order
     df = df.sort_values('block_timestamp').reset_index(drop=True)
@@ -178,22 +201,22 @@ def run_diagnostic_backtest():
     )
     cerebro.adddata(data_feed)
     
-    # Add diagnostic strategy with detailed parameters
+    # Add diagnostic strategy with detailed parameters (works with cleaned data feed)
     cerebro.addstrategy(
-        DiagnosticSolanaStrategy,
+        DiagnosticSimpleStrategy,
         # Trading thresholds
-        buy_pressure_threshold=0.58,    # Slightly more sensitive
-        volume_momentum_threshold=0.08,  # Lower momentum threshold
-        whale_ratio_threshold=0.003,     # Detect whale activity
-        min_transaction_count=8,         # Match data feed requirement
+        buy_ratio_threshold=0.58,           # Slightly more sensitive
+        volume_threshold=4.0,               # Lower volume threshold
+        trader_diversity_threshold=2,       # At least 2 unique traders
         
         # Risk management
-        position_size_pct=0.85,          # Use 85% of cash for positions
-        stop_loss=0.04,                  # 4% stop loss
-        take_profit=0.12,                # 12% take profit
+        position_size_pct=0.85,             # Use 85% of cash for positions
+        stop_loss=0.04,                     # 4% stop loss
+        take_profit=0.12,                   # 12% take profit
+        lookback_periods=3,                 # 3-period momentum calculation
         
         # Diagnostic settings
-        verbose=True,                    # Enable detailed logging
+        verbose=True,                       # Enable detailed logging
     )
     
     # Print initial conditions

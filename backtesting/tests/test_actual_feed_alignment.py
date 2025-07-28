@@ -1,18 +1,20 @@
 #!/usr/bin/env python3
 """
-Test actual SolanaTransactionFeed alignment with feature data
-Uses the real feed implementation instead of simulating timestamp logic
+Test actual SolanaTransactionFeed + FeatureEngineeringStrategy alignment with feature data
+Tests the new architecture: cleaned feed + separate feature engineering strategy
 """
 
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append('/Users/noel/projects/trading_eda')
 
 import pandas as pd
 import duckdb
 import backtrader as bt
 from datetime import datetime, timedelta
-from solana_transaction_feed import SolanaTransactionFeed
+from backtesting.solana_transaction_feed import SolanaTransactionFeed
+from backtesting.strategies.feature_engineering_strategy import FeatureEngineeringStrategy
+from backtesting.onchain_broker import setup_onchain_broker
 
 def main():
     print("🧪 Actual Feed Alignment Test")
@@ -41,10 +43,17 @@ def main():
             WHEN mint = swap_from_mint AND swap_to_mint = 'So11111111111111111111111111111111111111112' 
             THEN swap_to_amount
             ELSE 0.0
-        END as sol_amount
+        END as sol_amount,
+        swap_from_amount,
+        swap_to_amount,
+        swap_from_mint,
+        swap_to_mint
     FROM first_day_trades
     WHERE mint = '{coin_id}'
     AND succeeded = TRUE
+    AND (swap_from_mint = 'So11111111111111111111111111111111111111112' 
+         OR swap_to_mint = 'So11111111111111111111111111111111111111112')
+    AND mint != 'So11111111111111111111111111111111111111112'
     ORDER BY block_timestamp
     """
     
@@ -70,25 +79,16 @@ def main():
     if len(feature_df) > 0:
         print(f"Time range: {feature_df['sample_timestamp'].min()} to {feature_df['sample_timestamp'].max()}")
     
-    # Create actual SolanaTransactionFeed and run it
-    print("\n3. Running actual SolanaTransactionFeed...")
+    # Create actual SolanaTransactionFeed + FeatureEngineeringStrategy
+    print("\n3. Running new architecture: cleaned feed + feature engineering strategy...")
     
-    # Create a minimal Cerebro just to run the feed
+    # Create Cerebro
     cerebro = bt.Cerebro()
     
-    # Create the actual feed with explicit feature boundaries
-    feature_start = feature_df['sample_timestamp'].min()
-    feature_end = feature_df['sample_timestamp'].max()
-    
-    print(f"  Using feature boundaries: {feature_start} to {feature_end}")
-    
+    # Create the cleaned transaction feed (no more feature engineering in feed)
     data_feed = SolanaTransactionFeed(
         transaction_data=transaction_df,
-        aggregation_window=60,
-        min_lookback_seconds=120,
-        min_forward_seconds=300,
-        feature_start_time=feature_start,
-        feature_end_time=feature_end,
+        aggregation_window=60,  # 1-minute windows to match DuckDB sampling
         datetime_col='block_timestamp',
         volume_col='sol_amount',
         direction_col='is_buy',
@@ -99,154 +99,147 @@ def main():
     # Add feed to cerebro
     cerebro.adddata(data_feed)
     
-    # Capture feed timestamps and transaction data by running a simple strategy
-    feed_data = []
+    # Setup onchain broker
+    setup_onchain_broker(cerebro, initial_cash=50000)
     
-    class TimestampCapture(bt.Strategy):
+    # Capture features calculated by FeatureEngineeringStrategy
+    calculated_features = []
+    
+    # Custom FeatureEngineeringStrategy that captures features without trading
+    class TestFeatureEngineeringStrategy(FeatureEngineeringStrategy):
+        def __init__(self):
+            super().__init__()
+            
         def next(self):
-            current_datetime = self.datas[0].datetime.datetime(0)
+            # Run the normal feature engineering logic
+            super().next()
             
-            # Capture feed data including transaction metrics and ML features
-            feed_record = {
-                'timestamp': current_datetime,
-                'volume': self.data.volume[0],
-                'transaction_count': self.data.transaction_count[0],
-                'buy_ratio': self.data.is_buy[0],
-                'total_volume': self.data.sol_amount[0],
+            # Capture the calculated features
+            if self.last_features:
+                feature_record = {
+                    'timestamp': self.datas[0].datetime.datetime(0),
+                    **self.last_features
+                }
+                calculated_features.append(feature_record)
                 
-                # ML Features from WindowFeatureCalculator
-                'total_volume_30s': self.data.total_volume_30s[0],
-                'buy_ratio_30s': self.data.buy_ratio_30s[0],
-                'total_txns_30s': self.data.total_txns_30s[0],
-                'volume_concentration_30s': self.data.volume_concentration_30s[0],
-                'small_txn_ratio_30s': self.data.small_txn_ratio_30s[0],
+                # Debug first few records
+                if len(calculated_features) <= 3:
+                    print(f"  Debug {len(calculated_features)}: {feature_record['timestamp']}")
+                    print(f"    Features - vol_60s: {self.last_features.get('total_volume_60s', 0):.6f} | buy_ratio_60s: {self.last_features.get('buy_ratio_60s', 0):.3f} | txns_60s: {self.last_features.get('total_txns_60s', 0)}")
                 
-                'total_volume_60s': self.data.total_volume_60s[0],
-                'buy_ratio_60s': self.data.buy_ratio_60s[0],
-                'total_txns_60s': self.data.total_txns_60s[0],
-                'volume_concentration_60s': self.data.volume_concentration_60s[0],
-                'small_txn_ratio_60s': self.data.small_txn_ratio_60s[0],
-                
-                'total_volume_120s': self.data.total_volume_120s[0],
-                'buy_ratio_120s': self.data.buy_ratio_120s[0],
-                'total_txns_120s': self.data.total_txns_120s[0],
-                'volume_concentration_120s': self.data.volume_concentration_120s[0],
-                'small_txn_ratio_120s': self.data.small_txn_ratio_120s[0],
-                'medium_txn_ratio_120s': self.data.medium_txn_ratio_120s[0],
-                'whale_txn_ratio_120s': self.data.whale_txn_ratio_120s[0]
-            }
-            feed_data.append(feed_record)
-            
-            # Debug first few timestamps with ML features
-            if len(feed_data) <= 3:
-                print(f"  Debug {len(feed_data)}: {current_datetime}")
-                print(f"    Volume: {feed_record['volume']:.6f} | Txns: {feed_record['transaction_count']} | Buy ratio: {feed_record['buy_ratio']:.3f}")
-                print(f"    ML Features - vol_60s: {feed_record['total_volume_60s']:.6f} | buy_ratio_60s: {feed_record['buy_ratio_60s']:.3f} | txns_60s: {feed_record['total_txns_60s']}")
-            
-            # Print progress every 100 timestamps
-            if len(feed_data) % 100 == 0:
-                print(f"  Captured {len(feed_data)} feed records...")
+                # Print progress
+                if len(calculated_features) % 100 == 0:
+                    print(f"  Calculated {len(calculated_features)} feature records...")
     
-    cerebro.addstrategy(TimestampCapture)
+    # Add the FeatureEngineeringStrategy with no trading (high thresholds)
+    cerebro.addstrategy(
+        TestFeatureEngineeringStrategy,
+        lookback_windows=[30, 60, 120],
+        buy_ratio_threshold=1.0,  # Never buy
+        volume_threshold=float('inf'),  # Never buy 
+        trader_threshold=float('inf'),  # Never buy
+        verbose=False,
+        log_features=False
+    )
     
     # Run the feed
     print("  Running feed to capture actual timestamps...")
     results = cerebro.run()
     
-    # Extract timestamps from feed data
-    feed_timestamps = [record['timestamp'] for record in feed_data]
+    # Extract timestamps from calculated features
+    feature_timestamps = [record['timestamp'] for record in calculated_features]
     
-    print(f"✅ Feed generated {len(feed_timestamps)} timestamps")
-    if len(feed_timestamps) > 0:
-        print(f"Feed time range: {min(feed_timestamps)} to {max(feed_timestamps)}")
+    print(f"✅ Strategy calculated {len(feature_timestamps)} feature records")
+    if len(feature_timestamps) > 0:
+        print(f"Strategy time range: {min(feature_timestamps)} to {max(feature_timestamps)}")
     
-    # Compare with features
-    print("\n4. Comparing actual feed timestamps with features...")
+    # Compare with DuckDB features
+    print("\n4. Comparing calculated features with DuckDB ground truth...")
     
-    if len(feature_df) == 0 or len(feed_timestamps) == 0:
+    if len(feature_df) == 0 or len(feature_timestamps) == 0:
         print("❌ No data to compare")
         return
     
-    # Convert feature timestamps to UTC to match feed timestamps
-    feature_timestamps_utc = feature_df['sample_timestamp'].dt.tz_convert('UTC').dt.tz_localize(None)
-    feature_timestamps = set(feature_timestamps_utc)
-    feed_timestamps_set = set(pd.to_datetime(feed_timestamps))
+    # Convert feature timestamps to UTC to match calculated timestamps
+    duckdb_timestamps_utc = feature_df['sample_timestamp'].dt.tz_convert('UTC').dt.tz_localize(None)
+    duckdb_timestamps_set = set(duckdb_timestamps_utc)
+    calculated_timestamps_set = set(pd.to_datetime(feature_timestamps))
     
     # Find matches and non-matches
-    matching_timestamps = feature_timestamps.intersection(feed_timestamps_set)
-    feed_only = feed_timestamps_set - feature_timestamps
-    feature_only = feature_timestamps - feed_timestamps_set
+    matching_timestamps = duckdb_timestamps_set.intersection(calculated_timestamps_set)
+    calculated_only = calculated_timestamps_set - duckdb_timestamps_set
+    duckdb_only = duckdb_timestamps_set - calculated_timestamps_set
     
     print(f"\n✅ Results:")
-    print(f"📊 Feed timestamps: {len(feed_timestamps_set)}")
-    print(f"📊 Feature timestamps: {len(feature_timestamps)}")
+    print(f"📊 Calculated timestamps: {len(calculated_timestamps_set)}")
+    print(f"📊 DuckDB feature timestamps: {len(duckdb_timestamps_set)}")
     print(f"📊 Matching timestamps: {len(matching_timestamps)}")
-    print(f"📊 Feature coverage: {len(matching_timestamps)}/{len(feature_timestamps)} ({len(matching_timestamps)/len(feature_timestamps)*100:.1f}%)")
-    print(f"📊 Feed coverage: {len(matching_timestamps)}/{len(feed_timestamps_set)} ({len(matching_timestamps)/len(feed_timestamps_set)*100:.1f}%)")
+    print(f"📊 DuckDB coverage: {len(matching_timestamps)}/{len(duckdb_timestamps_set)} ({len(matching_timestamps)/len(duckdb_timestamps_set)*100:.1f}%)")
+    print(f"📊 Calculated coverage: {len(matching_timestamps)}/{len(calculated_timestamps_set)} ({len(matching_timestamps)/len(calculated_timestamps_set)*100:.1f}%)")
     
     # Show discrepancies summary only
-    if len(feed_only) > 0:
-        print(f"\n❌ Feed timestamps WITHOUT matching features: {len(feed_only)}")
+    if len(calculated_only) > 0:
+        print(f"\n❌ Calculated timestamps WITHOUT matching DuckDB features: {len(calculated_only)}")
     
-    if len(feature_only) > 0:
-        print(f"\n❌ Feature timestamps WITHOUT matching feed: {len(feature_only)}")
+    if len(duckdb_only) > 0:
+        print(f"\n❌ DuckDB timestamps WITHOUT matching calculated features: {len(duckdb_only)}")
     
-    # Analyze why feed has different count than features
+    # Analyze why calculated has different count than DuckDB features
     print(f"\n📊 COUNT ANALYSIS:")
-    print(f"Feed records: {len(feed_data)}")
-    print(f"Feature records: {len(feature_df)}")
-    print(f"Difference: {len(feature_df) - len(feed_data)} missing from feed")
+    print(f"Calculated records: {len(calculated_features)}")
+    print(f"DuckDB feature records: {len(feature_df)}")
+    print(f"Difference: {len(feature_df) - len(calculated_features)} missing from calculated")
     
     # Find the exact missing timestamp by comparing timezone-naive timestamps
-    if len(feed_data) != len(feature_df):
+    if len(calculated_features) != len(feature_df):
         print(f"\n🔍 FINDING MISSING TIMESTAMP:")
         
         # One-to-one comparison using UTC timestamps
-        feed_timestamps_utc = [pd.to_datetime(record['timestamp']) for record in feed_data]
-        feature_timestamps_utc_list = feature_df['sample_timestamp'].dt.tz_convert('UTC').dt.tz_localize(None).tolist()
+        calculated_timestamps_utc = [pd.to_datetime(record['timestamp']) for record in calculated_features]
+        duckdb_timestamps_utc_list = feature_df['sample_timestamp'].dt.tz_convert('UTC').dt.tz_localize(None).tolist()
         
-        missing_in_feed = set(feature_timestamps_utc_list) - set(feed_timestamps_utc)
-        missing_in_features = set(feed_timestamps_utc) - set(feature_timestamps_utc_list)
+        missing_in_calculated = set(duckdb_timestamps_utc_list) - set(calculated_timestamps_utc)
+        missing_in_duckdb = set(calculated_timestamps_utc) - set(duckdb_timestamps_utc_list)
         
-        if missing_in_feed:
-            print(f"  Missing from feed: {len(missing_in_feed)} timestamps")
-            for missing_ts in sorted(missing_in_feed):
+        if missing_in_calculated:
+            print(f"  Missing from calculated: {len(missing_in_calculated)} timestamps")
+            for missing_ts in sorted(missing_in_calculated):
                 print(f"    {missing_ts}")
                 
-                # Find the feature data for this timestamp
+                # Find the DuckDB feature data for this timestamp
                 feature_utc = feature_df['sample_timestamp'].dt.tz_convert('UTC').dt.tz_localize(None)
                 matching_feature = feature_df[feature_utc == missing_ts]
                 if len(matching_feature) > 0:
                     row = matching_feature.iloc[0]
-                    print(f"      Feature: vol={row['total_volume_120s']:.6f}, buy_ratio={row['buy_ratio_60s']:.6f}")
+                    print(f"      DuckDB: vol={row['total_volume_120s']:.6f}, buy_ratio={row['buy_ratio_60s']:.6f}")
                     print(f"      Original timestamp: {row['sample_timestamp']}")
                 
-        if missing_in_features:
-            print(f"  Missing from features: {len(missing_in_features)} timestamps")
-            for missing_ts in sorted(missing_in_features):
+        if missing_in_duckdb:
+            print(f"  Missing from DuckDB: {len(missing_in_duckdb)} timestamps")
+            for missing_ts in sorted(missing_in_duckdb):
                 print(f"    {missing_ts}")
                 
-                # Find the feed data for this timestamp
-                matching_feed = [r for r in feed_data if pd.to_datetime(r['timestamp']) == missing_ts]
-                if matching_feed:
-                    record = matching_feed[0]
-                    print(f"      Feed: vol={record['total_volume']:.6f}, buy_ratio={record['buy_ratio']:.6f}")
+                # Find the calculated feature data for this timestamp
+                matching_calculated = [r for r in calculated_features if pd.to_datetime(r['timestamp']) == missing_ts]
+                if matching_calculated:
+                    record = matching_calculated[0]
+                    print(f"      Calculated: vol={record.get('total_volume_60s', 0):.6f}, buy_ratio={record.get('buy_ratio_60s', 0):.6f}")
     
     # 5. Feature Value Comparison
     print("\n" + "="*60)
     print("5. FEATURE VALUE COMPARISON")
     print("="*60)
     
-    if len(feed_data) > 0 and len(feature_df) > 0:
-        print(f"Comparing ML features from feed vs DuckDB ground truth...")
+    if len(calculated_features) > 0 and len(feature_df) > 0:
+        print(f"Comparing calculated features vs DuckDB ground truth...")
         
         # Convert feature timestamps to UTC for matching
         feature_df_utc = feature_df.copy()
         feature_df_utc['sample_timestamp_utc'] = feature_df['sample_timestamp'].dt.tz_convert('UTC').dt.tz_localize(None)
         
-        # Convert feed timestamps to pandas datetime
-        feed_df = pd.DataFrame(feed_data)
-        feed_df['timestamp_utc'] = pd.to_datetime(feed_df['timestamp'])
+        # Convert calculated timestamps to pandas datetime
+        calculated_df = pd.DataFrame(calculated_features)
+        calculated_df['timestamp_utc'] = pd.to_datetime(calculated_df['timestamp'])
         
         # Find matching timestamps and compare features
         feature_columns_to_compare = [
@@ -269,11 +262,11 @@ def main():
             feature_row = feature_df_utc.iloc[i]
             target_timestamp = feature_row['sample_timestamp_utc']
             
-            # Find matching feed record
-            matching_feed_records = feed_df[feed_df['timestamp_utc'] == target_timestamp]
+            # Find matching calculated record
+            matching_calculated_records = calculated_df[calculated_df['timestamp_utc'] == target_timestamp]
             
-            if len(matching_feed_records) > 0:
-                feed_row = matching_feed_records.iloc[0]
+            if len(matching_calculated_records) > 0:
+                calculated_row = matching_calculated_records.iloc[0]
                 
                 print(f"\n📊 Timestamp: {target_timestamp}")
                 print(f"   Original feature timestamp: {feature_row['sample_timestamp']}")
@@ -283,9 +276,9 @@ def main():
                 timestamp_close = 0
                 
                 for feature_col in feature_columns_to_compare:
-                    if feature_col in feature_row.index and feature_col in feed_row.index:
+                    if feature_col in feature_row.index and feature_col in calculated_row.index:
                         ground_truth = feature_row[feature_col]
-                        calculated = feed_row[feature_col]
+                        calculated = calculated_row[feature_col]
                         
                         # Compare with tolerance
                         if pd.isna(ground_truth) and pd.isna(calculated):
@@ -334,7 +327,7 @@ def main():
                 accuracy_close = timestamp_close / timestamp_matches * 100 if timestamp_matches > 0 else 0
                 print(f"   📈 Timestamp accuracy: {timestamp_exact}/{timestamp_matches} exact ({accuracy_exact:.1f}%), {timestamp_close}/{timestamp_matches} close ({accuracy_close:.1f}%)")
             else:
-                print(f"\n❌ No matching feed record for {target_timestamp}")
+                print(f"\n❌ No matching calculated record for {target_timestamp}")
         
         # Overall statistics
         print(f"\n" + "="*60)
@@ -350,11 +343,11 @@ def main():
         print(f"Mismatches: {total_comparisons - close_matches} ({100 - overall_close_pct:.1f}%)")
         
         if overall_close_pct >= 99.0:
-            print("\n🎉 Feed features are highly accurate!")
+            print("\n🎉 Calculated features are highly accurate!")
         elif overall_close_pct >= 95.0:
-            print("\n✅ Feed features are mostly accurate")
+            print("\n✅ Calculated features are mostly accurate")
         else:
-            print("\n⚠️ Feed features need investigation")
+            print("\n⚠️ Calculated features need investigation")
     else:
         print("❌ No data available for feature comparison")
     
