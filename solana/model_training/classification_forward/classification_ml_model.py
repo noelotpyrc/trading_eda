@@ -32,11 +32,12 @@ warnings.filterwarnings('ignore')
 
 # Configuration
 FEATURES_FILE = "/Volumes/Extreme SSD/trading_data/solana/classification_features/combined_features_sql.csv"
-MODEL_OUTPUT_DIR = "solana/models/classification_forward"
+MODEL_OUTPUT_DIR = "/Volumes/Extreme SSD/trading_data/solana/models/classification_forward"
 RANDOM_STATE = 42
 
 # Model parameters
 TEST_SIZE = 0.2
+VAL_SIZE = 0.15  # 15% of coins for validation (never used in training)
 CV_FOLDS = 5
 MAX_FEATURES_SELECTION = 80
 SAMPLE_SIZE = 10000000  # For faster training, adjust as needed
@@ -56,33 +57,39 @@ def load_and_prepare_data(sample_size=SAMPLE_SIZE):
     df = pd.read_csv(FEATURES_FILE)
     print(f"Original dataset: {len(df):,} records, {df.shape[1]} features")
     
+    # Add first sample timestamp for each coin_id without changing data types or order
+    print("Recording first sample timestamp for each coin...")
+    df['first_sample_timestamp'] = df.groupby('coin_id')['sample_timestamp'].transform('first')
+    
     # Sample for manageable training (if dataset is large)
     if len(df) > sample_size:
-        # Time-based sampling to maintain temporal structure
-        df['sample_timestamp'] = pd.to_datetime(df['sample_timestamp'])
-        df = df.sort_values('sample_timestamp')
-        
         # Take every nth record to maintain temporal distribution
         step = len(df) // sample_size
         df = df.iloc[::step].reset_index(drop=True)
         print(f"Sampled dataset: {len(df):,} records (every {step}th record)")
     
     # Prepare features and target
-    metadata_cols = ['coin_id', 'sample_timestamp', 'total_transactions']
+    metadata_cols = ['coin_id', 'sample_timestamp', 'first_sample_timestamp', 'total_transactions']
     target_col = 'is_profitable_300s'
     forward_cols = ['forward_buy_volume_300s', 'forward_sell_volume_300s']
     
-    # Separate features, target, and metadata
+    # Separate features, target, metadata, and forward volume features
     feature_cols = [col for col in df.columns 
                    if col not in metadata_cols + [target_col] + forward_cols]
     
     X = df[feature_cols].copy()
     y = df[target_col].copy()
     metadata = df[metadata_cols + [target_col]].copy()
+    forward_volumes = df[forward_cols].copy()
+    additional_features = df[['coin_id', 'sample_timestamp', 'first_sample_timestamp', 'total_transactions']].copy()
     
     print(f"Features: {X.shape[1]}")
     print(f"Samples: {len(X):,}")
     print(f"Target distribution: {y.value_counts().to_dict()}")
+    print(f"Forward volume features: {forward_volumes.shape[1]}")
+    print(f"Additional metadata features: {additional_features.shape[1]}")
+    print(f"Unique coins: {additional_features['coin_id'].nunique():,}")
+    print(f"Total transactions range: {additional_features['total_transactions'].min():.0f} - {additional_features['total_transactions'].max():.0f}")
     
     # Data quality checks
     print(f"\nData Quality:")
@@ -93,6 +100,10 @@ def load_and_prepare_data(sample_size=SAMPLE_SIZE):
     X = X.fillna(0)
     X = X.replace([np.inf, -np.inf], 0)
     
+    # Handle forward volume data quality
+    forward_volumes = forward_volumes.fillna(0)
+    forward_volumes = forward_volumes.replace([np.inf, -np.inf], 0)
+    
     # Remove constant features
     constant_features = X.columns[X.std() == 0]
     if len(constant_features) > 0:
@@ -100,7 +111,7 @@ def load_and_prepare_data(sample_size=SAMPLE_SIZE):
         X = X.drop(columns=constant_features)
     
     print(f"Final features: {X.shape[1]}")
-    return X, y, metadata
+    return X, y, metadata, forward_volumes, additional_features
 
 def analyze_baseline_performance(X, y):
     """
@@ -380,7 +391,7 @@ def main():
     
     # Load and prepare data
     section_start = time.time()
-    X, y, metadata = load_and_prepare_data()
+    X, y, metadata, forward_volumes, additional_features = load_and_prepare_data()
     print(f"Data loading and preparation time: {time.time() - section_start:.2f} seconds")
     
     # Baseline analysis
@@ -393,41 +404,117 @@ def main():
     print(f"Training with all {X.shape[1]} original features")
     X_final = X
     
-    # Train/test split with time consideration
-    X_train, X_test, y_train, y_test = train_test_split(
-        X_final, y, test_size=TEST_SIZE, random_state=RANDOM_STATE, stratify=y
-    )
+    # Create train/validation/test split by sampling coin_ids
+    print(f"\n=== CREATING TRAIN/VALIDATION/TEST SPLITS BY COIN_ID ===")
     
-    print(f"\nTraining set: {len(X_train):,} samples")
-    print(f"Test set: {len(X_test):,} samples")
+    # Get unique coin_ids
+    unique_coins = additional_features['coin_id'].unique()
+    np.random.seed(RANDOM_STATE)
     
-    # Create and evaluate models
+    # First split: separate validation coins
+    val_coins = np.random.choice(unique_coins, size=int(len(unique_coins) * VAL_SIZE), replace=False)
+    remaining_coins = np.setdiff1d(unique_coins, val_coins)
+    
+    # Second split: separate test coins from remaining
+    test_coins = np.random.choice(remaining_coins, size=int(len(remaining_coins) * TEST_SIZE), replace=False)
+    train_coins = np.setdiff1d(remaining_coins, test_coins)
+    
+    print(f"Total unique coins: {len(unique_coins):,}")
+    print(f"Validation coins: {len(val_coins):,} ({len(val_coins)/len(unique_coins)*100:.1f}%)")
+    print(f"Test coins: {len(test_coins):,} ({len(test_coins)/len(unique_coins)*100:.1f}%)")
+    print(f"Train coins: {len(train_coins):,} ({len(train_coins)/len(unique_coins)*100:.1f}%)")
+    
+    # Create masks for each split
+    val_mask = additional_features['coin_id'].isin(val_coins)
+    test_mask = additional_features['coin_id'].isin(test_coins)
+    train_mask = additional_features['coin_id'].isin(train_coins)
+    
+    # Split the data
+    X_train = X_final[train_mask].copy()
+    X_val = X_final[val_mask].copy()
+    X_test = X_final[test_mask].copy()
+    
+    y_train = y[train_mask].copy()
+    y_val = y[val_mask].copy()
+    y_test = y[test_mask].copy()
+    
+    forward_train = forward_volumes[train_mask].copy()
+    forward_val = forward_volumes[val_mask].copy()
+    forward_test = forward_volumes[test_mask].copy()
+    
+    additional_train = additional_features[train_mask].copy()
+    additional_val = additional_features[val_mask].copy()
+    additional_test = additional_features[test_mask].copy()
+    
+    print(f"\nTraining set: {len(X_train):,} samples ({y_train.mean():.3f} positive rate)")
+    print(f"Validation set: {len(X_val):,} samples ({y_val.mean():.3f} positive rate)")
+    print(f"Test set: {len(X_test):,} samples ({y_test.mean():.3f} positive rate)")
+    
+    # Persist train/validation/test sets
+    print(f"\n=== PERSISTING TRAIN/VALIDATION/TEST SETS ===")
+    datasets_dir = f"{MODEL_OUTPUT_DIR}/datasets"
+    os.makedirs(datasets_dir, exist_ok=True)
+    
+    # Save as pickle files
+    train_data = {
+        'X_train': X_train, 
+        'y_train': y_train,
+        'forward_buy_volume_300s_train': forward_train['forward_buy_volume_300s'],
+        'forward_sell_volume_300s_train': forward_train['forward_sell_volume_300s'],
+        'metadata_train': additional_train  # Save as DataFrame
+    }
+    
+    val_data = {
+        'X_val': X_val, 
+        'y_val': y_val,
+        'forward_buy_volume_300s_val': forward_val['forward_buy_volume_300s'],
+        'forward_sell_volume_300s_val': forward_val['forward_sell_volume_300s'],
+        'metadata_val': additional_val  # Save as DataFrame
+    }
+    
+    test_data = {
+        'X_test': X_test, 
+        'y_test': y_test,
+        'forward_buy_volume_300s_test': forward_test['forward_buy_volume_300s'],
+        'forward_sell_volume_300s_test': forward_test['forward_sell_volume_300s'],
+        'metadata_test': additional_test  # Save as DataFrame
+    }
+    
+    train_file = f"{datasets_dir}/train_set.pkl"
+    val_file = f"{datasets_dir}/val_set.pkl"
+    test_file = f"{datasets_dir}/test_set.pkl"
+    
+    with open(train_file, 'wb') as f:
+        pickle.dump(train_data, f)
+    with open(val_file, 'wb') as f:
+        pickle.dump(val_data, f)
+    with open(test_file, 'wb') as f:
+        pickle.dump(test_data, f)
+    
+    print(f"✅ Train set saved: {train_file} ({len(X_train):,} samples)")
+    print(f"✅ Validation set saved: {val_file} ({len(X_val):,} samples)")
+    print(f"✅ Test set saved: {test_file} ({len(X_test):,} samples)")
+    print(f"✅ Coins are completely separated between splits")
+    print(f"   Train coins: {len(train_coins):,}")
+    print(f"   Validation coins: {len(val_coins):,}")
+    print(f"   Test coins: {len(test_coins):,}")
+    
+    # Create and evaluate only XGBoost model
     section_start = time.time()
     models = create_ensemble_models()
-    results = evaluate_models(models, X_train, X_test, y_train, y_test)
-    print(f"Model creation and evaluation time: {time.time() - section_start:.2f} seconds")
+    xgboost_model = {'XGBoost': models['XGBoost']}  # Only use XGBoost
+    results = evaluate_models(xgboost_model, X_train, X_test, y_train, y_test)
+    print(f"XGBoost model creation and evaluation time: {time.time() - section_start:.2f} seconds")
     
     # Feature importance analysis
     section_start = time.time()
     importance_df = analyze_feature_importance(results, X_final.columns)
     print(f"Feature importance analysis time: {time.time() - section_start:.2f} seconds")
     
-    # Create voting ensemble
-    section_start = time.time()
-    voting_ensemble, top_models = create_voting_ensemble(results, X_train, y_train)
-    print(f"Voting ensemble creation time: {time.time() - section_start:.2f} seconds")
-    
-    # Evaluate voting ensemble
-    y_pred_voting = voting_ensemble.predict(X_test)
-    y_prob_voting = voting_ensemble.predict_proba(X_test)[:, 1]
-    voting_auc = roc_auc_score(y_test, y_prob_voting)
-    
-    print(f"\nVoting Ensemble AUC: {voting_auc:.4f}")
-    
-    # Save best model for production
+    # Save XGBoost model for production
     section_start = time.time()
     model_file, model_metadata = save_production_model(
-        voting_ensemble, X_final.columns, importance_df, results, metadata
+        None, X_final.columns, importance_df, results, metadata
     )
     print(f"Model saving time: {time.time() - section_start:.2f} seconds")
     

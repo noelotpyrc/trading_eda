@@ -5,4 +5,4 @@
 
 # How was the data pulled
 - Dune analytic SQL
-- TBD
+- Flipside
