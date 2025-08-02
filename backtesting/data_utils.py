@@ -100,16 +100,6 @@ DATA SOURCES TO SUPPORT:
 TODO: Implement when expanding to traditional asset strategies
 """
 
-# Placeholder imports for future implementation
-import pandas as pd
-import numpy as np
-from typing import Dict, Any, List, Optional
-from datetime import datetime
-
-# TODO: Remove this comment when implementing
-print("⚠️  data_utils.py is currently stubbed out - see docstring for planned features")
-
-
 def load_ohlcv_data(source: str, **kwargs) -> pd.DataFrame:
     """
     Load OHLCV data from various sources
