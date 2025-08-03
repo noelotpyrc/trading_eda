@@ -1,8 +1,16 @@
 import backtrader as bt
 import pandas as pd
+import sys
+from pathlib import Path
+
+# Add strategies directory to path
+sys.path.append(str(Path(__file__).parent.parent / 'strategies'))
+
+from simple_exit_strategy import SimpleExitStrategy
 
 # Load the OHLVC signals data
-csv_path = 'backtesting/data/ohlvc_signals/2Kk16bkuFH8dsd117feYaqPjBYrF8NC5GCM2VMyKpump_ohlvc_signals.csv'
+# 8PZC9VjQadfmpaXrF1neiHT9ZmqXUABZF7nzE2ai4mGa, GcmsHHG41giJYACYKrdxZp3kdKMZfg1UB7LaYzCzPxLJ
+csv_path = 'backtesting/data/ohlvc_signals/GcmsHHG41giJYACYKrdxZp3kdKMZfg1UB7LaYzCzPxLJ_ohlvc_signals.csv'
 df = pd.read_csv(csv_path)
 
 # Convert datetime and set as index
@@ -14,7 +22,7 @@ print(f"Columns: {df.columns.tolist()}")
 
 # Custom data feed with safe_long_signal
 class OHLVCSignalsData(bt.feeds.PandasData):
-    lines = ('safe_long_signal',)
+    lines = ('safe_long_signal','regime_1_contrarian_signal',)
     params = dict(
         datetime=None,  # use index
         open='open',
@@ -23,40 +31,19 @@ class OHLVCSignalsData(bt.feeds.PandasData):
         close='close',
         volume='volume',
         openinterest='openinterest',
-        safe_long_signal='safe_long_signal'
+        safe_long_signal='safe_long_signal',
+        regime_1_contrarian_signal='regime_1_contrarian_signal',
     )
 
-# Simple strategy: buy on safe_long_signal
-class SimpleSignalStrategy(bt.Strategy):
-    
-    def log(self, txt, dt=None):
-        dt = dt or self.datas[0].datetime.datetime(0)
-        print('%s, %s' % (dt.strftime('%Y-%m-%d %H:%M:%S'), txt))
-
-    def __init__(self):
-        self.dataclose = self.datas[0].close
-        self.safe_long_signal = self.datas[0].safe_long_signal
-
-    def next(self):
-        self.log('Close, %.2f, Signal, %d, Portfolio, %.2f' % (
-            self.dataclose[0], 
-            self.safe_long_signal[0], 
-            self.broker.getvalue()
-        ))
-        
-        if self.safe_long_signal[0] == 1 and not self.position:
-            self.buy()
-            self.log('BUY CREATE, %.2f' % self.dataclose[0])
-        elif self.position and len(self.data) > 10:
-            self.close()
-            self.log('SELL CREATE, %.2f' % self.dataclose[0])
+# Strategy class is now imported from simple_exit_strategy.py
 
 # Run backtest
 cerebro = bt.Cerebro()
 data = OHLVCSignalsData(dataname=df)
 cerebro.adddata(data)
-cerebro.addstrategy(SimpleSignalStrategy)
-cerebro.broker.setcash(10000)
+cerebro.addstrategy(SimpleExitStrategy, hold_bars=2)
+cerebro.broker.setcash(100)
+cerebro.broker.setcommission(commission=0.001)
 
 # analyzers
 cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe')
@@ -65,6 +52,9 @@ cerebro.addanalyzer(bt.analyzers.TimeReturn,  _name='rets')
 print(f"Starting Value: {cerebro.broker.getvalue():.2f}")
 results = cerebro.run()[0]
 print(f"Final Value: {cerebro.broker.getvalue():.2f}")
+
+# Save detailed results
+results.save_results('test_backtest_results.csv')
 
 # print headline stats
 sharpe_analysis = results.analyzers.sharpe.get_analysis()

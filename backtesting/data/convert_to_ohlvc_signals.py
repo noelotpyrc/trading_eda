@@ -134,9 +134,9 @@ class OHLVCSignalConverter:
         # Generate trading signals based on regime anomaly strategy
         signals_df['safe_long_signal'] = (signals_df['ml_prediction_score'] >= 0.65).astype(int)
         
-        # Regime 1 contrarian signals (prob ranges: 0.12-0.13, 0.16-0.17)
+        # Regime 1 contrarian signals (prob ranges: 0.13-0.14, 0.16-0.17)
         regime_1_mask = signals_df['regime'] == 1
-        contrarian_range_1 = (signals_df['ml_prediction_score'] >= 0.12) & (signals_df['ml_prediction_score'] <= 0.13)
+        contrarian_range_1 = (signals_df['ml_prediction_score'] >= 0.13) & (signals_df['ml_prediction_score'] <= 0.14)
         contrarian_range_2 = (signals_df['ml_prediction_score'] >= 0.16) & (signals_df['ml_prediction_score'] <= 0.17)
         regime_1_contrarian = regime_1_mask & (contrarian_range_1 | contrarian_range_2)
         
