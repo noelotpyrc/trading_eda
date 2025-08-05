@@ -17,7 +17,7 @@ class SimpleExitStrategy(bt.Strategy):
     params = dict(
         hold_bars=2,  # Default: exit after 2 bars
         contrarian_size_sol=1,  # Fixed SOL amount for contrarian trades
-        safe_long_cash_pct=0.9,  # Percentage of cash for safe long trades
+        safe_long_size=10,  # Fixed SOL amount for safe long trades
     )
 
     def log(self, txt, dt=None):
@@ -73,9 +73,8 @@ class SimpleExitStrategy(bt.Strategy):
                     # Regime 1 contrarian: fixed SOL position (parameter)
                     size = self.params.contrarian_size_sol / self.data.close[0]
                 else:
-                    # Safe long: use percentage of available cash (parameter)
-                    cash = self.broker.get_cash()
-                    size = (cash * self.params.safe_long_cash_pct) / self.data.close[0]
+                    # Safe long: fixed SOL position (parameter)
+                    size = self.params.safe_long_size / self.data.close[0]
                 
                 self.order_open = self.buy(size=size)
                 
@@ -122,6 +121,7 @@ class SimpleExitStrategy(bt.Strategy):
                 self.order_open = None
             else:
                 self.order_close = None
+        
 
     def notify_trade(self, trade):
         """Handle trade notifications"""

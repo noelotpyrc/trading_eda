@@ -166,7 +166,7 @@ def main():
     strategy_params = {
         'hold_bars': 2,
         'contrarian_size_sol': 1,
-        'safe_long_cash_pct': 0.9
+        'safe_long_size': 10
     }
     
     print(f"⚙️ Strategy parameters: {strategy_params}")
