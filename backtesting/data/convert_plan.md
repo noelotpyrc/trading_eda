@@ -17,3 +17,26 @@ Step by step, we should:
 1. Pull the feature table for one coin from DuckDB, and use ML models to generate the signals
 2. Also pull the transaction data (`first_day_trades`) for this coin from Duckdb, use the exact sample timestamps from feature table to generate the 1min candle stick OHLVC data
 3. Merge signal with OHLVC data
+
+# Addtional signals
+
+To avoid buggy implementation of execution condition check in Strategy or Filler, we also want to add additional signals for each sample timestamp to see if the buy or sell order can be executed in the next candle.
+
+This process should be done after the OHLVC data with ML signals is merged.
+
+Three additional columns are required:
+
+1. Available to execute buy signal column, binary
+2. Coin size column, numerical
+3. Available to execute sell signal column, binary
+
+1. For each of row which could trigger a buy order, check: 
+    1. if the next row has enough volume (Sol) to execute the buy order
+    2. if the next row has a low price than the open price
+    3. if both are true, mark the signal as yes for availability to execute buy for this row. Important, it should be yes for this row, not next row.
+2. If the available to execute buy signal is marked as yes, the next row should record the size of coin to be purchased based on the fixed amount of Sol size divided by the open price of the next row. And all the next rows until the end should record this size of coin number.
+3. After N rows of available to execute signal is yes, check whether this row has enough volume (Sol) for sell order, using the size of coin purchased multiplying with open price to calculate the sell size:
+    1. If there is enough volume, mark the signal as yes for availability to execute sell for this row. 
+    2. If there is not enough volume for this row, move to the next row until finding a row with enough volume to execute sell order, and mark yes for that row.
+    3. After availability to execute sell is marked yes for this row, the size of coin column should be updated to 0 for this row and all the next rows until the end.
+    3. If no row has enough volume for executing sell order, then do nothing (the sell order and potential orders are all blocked now)

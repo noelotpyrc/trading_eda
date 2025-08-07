@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """
-Batch Backtest Script - Run strategy on all OHLVC signal files
+Batch Backtest Script - Run strategy on all validated OHLVC signal files
+
+Uses execution-validated CSV files with can_execute_buy/sell signals
+to ensure realistic trading conditions during backtesting.
 """
 
 import backtrader as bt
@@ -18,9 +21,9 @@ plt.ioff()  # Turn off interactive mode
 sys.path.append(str(Path(__file__).parent / 'strategies'))
 from simple_exit_strategy import SimpleExitStrategy
 
-# Custom data feed
+# Custom data feed with execution validation signals
 class OHLVCSignalsData(bt.feeds.PandasData):
-    lines = ('safe_long_signal', 'regime_1_contrarian_signal')
+    lines = ('safe_long_signal', 'regime_1_contrarian_signal', 'can_execute_buy', 'can_execute_sell', 'coin_size')
     params = dict(
         datetime=None,
         open='open',
@@ -31,12 +34,15 @@ class OHLVCSignalsData(bt.feeds.PandasData):
         openinterest='openinterest',
         safe_long_signal='safe_long_signal',
         regime_1_contrarian_signal='regime_1_contrarian_signal',
+        can_execute_buy='can_execute_buy',
+        can_execute_sell='can_execute_sell',
+        coin_size='coin_size',
     )
 
 def run_single_backtest(csv_path, output_dir, strategy_params=None):
-    """Run backtest on single OHLVC file"""
+    """Run backtest on single validated OHLVC file"""
     
-    coin_id = Path(csv_path).stem.replace('_ohlvc_signals', '')
+    coin_id = Path(csv_path).stem.replace('_validated', '')
     print(f"🪙 Processing: {coin_id}")
     
     try:
@@ -88,6 +94,28 @@ def run_single_backtest(csv_path, output_dir, strategy_params=None):
         # Restore logging
         SimpleExitStrategy.log = original_log
         
+        # Sanity check: handle open positions at end of backtest
+        final_value_adjusted = final_value
+        position_warning = ""
+        
+        if results.position.size != 0:
+            # Position is still open - force close and adjust portfolio value
+            position_warning = f"⚠️ Open position detected: {results.position.size:.6f} units"
+            
+            # Get the value when the last buy was filled
+            # Find the last buy action in results
+            last_buy_value = initial_value
+            for result_row in results.results:
+                if result_row.get('action') == 'BUY_FILLED':
+                    last_buy_value = result_row['portfolio_value']
+            
+            # Adjust final value back to last buy value (effectively canceling the open trade)
+            final_value_adjusted = last_buy_value
+            
+            print(f"{position_warning}")
+            print(f"   📊 Original final value: ${final_value:.2f}")
+            print(f"   🔄 Adjusted final value: ${final_value_adjusted:.2f} (rolled back to last buy)")
+        
         # Save detailed results
         results_file = output_dir / f"{coin_id}_results.csv"
         results.save_results(str(results_file))
@@ -103,8 +131,8 @@ def run_single_backtest(csv_path, output_dir, strategy_params=None):
             print(f"⚠️ Plot failed for {coin_id}: {e}")
             plot_file = None
         
-        # Extract performance metrics
-        total_return = (final_value - initial_value) / initial_value * 100
+        # Extract performance metrics (using adjusted value)
+        total_return = (final_value_adjusted - initial_value) / initial_value * 100
         
         # Trade analysis
         trades = results.analyzers.trades.get_analysis()
@@ -126,13 +154,15 @@ def run_single_backtest(csv_path, output_dir, strategy_params=None):
         return {
             'coin_id': coin_id,
             'initial_value': initial_value,
-            'final_value': final_value,
+            'final_value': final_value_adjusted,
+            'final_value_raw': final_value,
             'total_return': total_return,
             'sharpe_ratio': sharpe.get('sharperatio', None),
             'max_drawdown': drawdown['max']['drawdown'] if 'max' in drawdown else None,
             'data_points': len(df),
             'results_file': str(results_file),
             'plot_file': str(plot_file),
+            'position_warning': position_warning,
             **trade_stats
         }
         
@@ -146,25 +176,24 @@ def main():
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     
     # Setup directories
-    input_dir = Path('backtesting/data/ohlvc_signals')
+    input_dir = Path('backtesting/data/ohlvc_signals_validated')
     output_dir = Path(f'backtesting/results/batch_{timestamp}')
     output_dir.mkdir(parents=True, exist_ok=True)
     
-    print(f"🚀 Starting batch backtest")
+    print(f"🚀 Starting batch backtest with validated signals")
     print(f"📁 Input directory: {input_dir}")
     print(f"📁 Output directory: {output_dir}")
     
-    # Find all OHLVC signal files
-    signal_files = list(input_dir.glob('*_ohlvc_signals.csv'))
-    print(f"📊 Found {len(signal_files)} signal files")
+    # Find all validated OHLVC signal files
+    signal_files = list(input_dir.glob('*_validated.csv'))
+    print(f"📊 Found {len(signal_files)} validated signal files")
     
     if len(signal_files) == 0:
         print("❌ No signal files found!")
         return
     
-    # Strategy parameters
+    # Strategy parameters (removed hold_bars since we use validation signals now)
     strategy_params = {
-        'hold_bars': 2,
         'contrarian_size_sol': 1,
         'safe_long_size': 10
     }
@@ -187,7 +216,7 @@ def main():
             successful += 1
         else:
             failed += 1
-            coin_id = Path(csv_file).stem.replace('_ohlvc_signals', '')
+            coin_id = Path(csv_file).stem.replace('_validated', '')
             failed_coins.append(coin_id)
     
     # Save summary results

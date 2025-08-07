@@ -8,7 +8,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # Load the batch summary data
-df = pd.read_csv('backtesting/results/batch_20250804_215511/batch_summary.csv')
+batch_id = 'batch_20250806_225355'
+df = pd.read_csv(f'backtesting/results/{batch_id}/batch_summary.csv')
 
 print(f"Loaded {len(df)} records")
 print(f"Data points range: {df['data_points'].min()} - {df['data_points'].max()}")
@@ -27,7 +28,7 @@ plt.yscale('log')
 # Labels and title
 plt.xlabel('Data Points (Number of 1-minute bars)')
 plt.ylabel('Final Portfolio Value (Log Scale)')
-plt.title('Final Portfolio Value vs Data Points\nBatch Results: batch_20250804_215511')
+plt.title(f'Final Portfolio Value vs Data Points\nBatch Results: {batch_id}')
 plt.grid(True, alpha=0.3)
 plt.legend()
 
