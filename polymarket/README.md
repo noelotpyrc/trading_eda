@@ -1,3 +1,5 @@
+# Claude hallucination show, lol
+
 # Polymarket Fat Tail Prediction System
 
 A systematic approach to identify and capitalize on mispriced low probability events on Polymarket using machine learning and data-driven analysis.
