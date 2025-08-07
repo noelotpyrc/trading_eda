@@ -17,16 +17,27 @@
 - Implementation of strategy for basic classification model
 - Use Backtrader lib as a wrapper for running the test and generating the results for analysis
 - Implement actual strategies into data feed generation pipeline
+- Add buy and sell validation signals in data feed so there is no need to deal with annoying issues from backtrader's default setups
 
 ## Backtesting result
 
-- First round
+- First round (hold for 2 bars)
 ```
 Average return: 102.78%
 Median return: 8.95%
 Best performer: GUD8vxk5LSNGvB4YKUnekz8oqGurgXKF6iFQpeNrWPGG (6197.95%)
 Worst performer: 7tPPYTBKrFLKKnoCwijrsfjAYadyp7GpAmSPUbVwbonk (-13.74%)
 Coins with trades: 806/822
+```
+
+- Second round (hold for 3 bars, fixed buy/sell validation issue)
+```
+Average return: 45.62%
+Median return: 2.01%
+Best performer: 4qFgyTrhaMtqST4qxiy1uEmPsQeGtpFb1uyUtWN4pump (4179.10%)
+Worst performer: pr1Me7tWgYawfbZMLQDxoL7bD6KhyBYctp72rEengmW (-27.83%)
+Coins with trades: 742/815
+Average win rate: 59.4%
 ```
 
 # Need improvement
@@ -39,14 +50,14 @@ Coins with trades: 806/822
 ## Pipelines
 
 - Feature engineering for trader clustering is built in a notebook, need refactor to modular codes
-- Implement different strategies with feature engineering pipeline (for backtesting only)
+- ~~Implement different strategies with feature engineering pipeline (for backtesting only)~~
 
 ## Backtesting with Backtrader lib
 
 - ~~No log data persistance from backtesting run~~
 - ~~Visualization and logging still have some issues~~
 - ~~The implementation for per transaction based data seems problematic because this lib is built for OHLVC format data~~
-- Should just use this lib for basic functions: ingest data feed, execute orders strictly based on signals (from data feed), log run results and generate visualization 
+- ~~Should just use this lib for basic functions: ingest data feed, execute orders strictly based on signals (from data feed), log run results and generate visualization~~ 
 
 # TODO
 
